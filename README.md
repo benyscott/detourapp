@@ -43,23 +43,42 @@ We live in a world of “everything, everywhere, all at once”, overloaded with
 
 Some to be launched with the MVP, the rest to be integrated as the project grows.
 
+<aside>
 🥸 📍search shops or addresses
+
 🏡 add home and 📆 work (not sure if that is useful as you’d probably know how to travel through your own city)
+
 🪺 add nest (temporary home in a place you visit)
+
 🫱🏼‍🫲🏾 share live location button
+
 💡 suggest features
+
 🔂 Tour creator
+
 🚲 bike mode, 🚙 gps mode (maybe you have your speed and simple directions)
+
 ⏱️ opening times, ⭐️ reviews
+
 👨🏿‍💻 move to open source 🗺️ maps & 📍POIs
+
 🎬 movies tours, 📚 book tours
+
 🧑🏽‍🎨 create your own tours (and beautiful timelines of your trips)
+
 📅 events around me
+
 🧳 solo travelling: meeting people on holidays in unknown places (Tinder of travelling)
+
 📈 stay up-to-date with current trends: recommend must-gos (for example Jon Cake in Barcelona, with its 100m long queue of hungry tourists)
+
+</aside>
 
 # Design 🎨
 
 Everything to do with UX/UI, branding, philosophy. 
+<aside>
 🎨 🐌 Movement
+
 🏳️‍🌈 Colours
+</aside>
