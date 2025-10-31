@@ -39,89 +39,27 @@ We live in a world of “everything, everywhere, all at once”, overloaded with
 
 🗨️ Language: let’s be poetic and humoristic. Let’s *think different*. Points of Interest (POIs), Events and Maps are words we see everyday everywhere. Let’s rename them. POIs could be **Pearls** 🦪 (after all, the world is your oyster), Events are **Moments** ⏳ (live in the moment, baby).
 
-# Features 🚀
+# Features of the Futures 🚀
 
 Some to be launched with the MVP, the rest to be integrated as the project grows.
 
-<aside>
 🥸 📍search shops or addresses
-
 🏡 add home and 📆 work (not sure if that is useful as you’d probably know how to travel through your own city)
-
 🪺 add nest (temporary home in a place you visit)
-
 🫱🏼‍🫲🏾 share live location button
-
 💡 suggest features
-
 🔂 Tour creator
-
 🚲 bike mode, 🚙 gps mode (maybe you have your speed and simple directions)
-
 ⏱️ opening times, ⭐️ reviews
-
 👨🏿‍💻 move to open source 🗺️ maps & 📍POIs
-
 🎬 movies tours, 📚 book tours
-
 🧑🏽‍🎨 create your own tours (and beautiful timelines of your trips)
-
 📅 events around me
-
 🧳 solo travelling: meeting people on holidays in unknown places (Tinder of travelling)
-
 📈 stay up-to-date with current trends: recommend must-gos (for example Jon Cake in Barcelona, with its 100m long queue of hungry tourists)
-
-</aside>
-
-# Team 🐈
-
-List of eventual positions needed, missing a lot obviously.
-
-<aside>
-🚧 🧭 Navigation engineer: creating maps, POI,
-
-📱UX/UI: easy to use app, limited information display
-
-📊 Business developer: talking to cities as official tour app, businesses to sell tickets
-
-💻 AI engineer: for POI or Moments recommendation, data parsing (going through books and movies), creating tours
-
-⚖️ Intellectual property lawyer: if we’re going to show places based on books and movies, maybe there’s some legal issues with scanning libraries of books?
-
-</aside>
-
-# Money 🏦
-
-It’s nice to dream about helpful services for humans, but these services and the humans bringing to live need to eat. Ways of making some dollar-dollar-bills, yo.
-
-<aside>
-💰 🎟️ book tickets to attractions, events,
-
-🚳 bike rentals
-
-🪺 flat/hotel rentals
-
-💸 sell advertising for restaurants/shops
-
-🔂 sell guided tours / treasure hunts
-
-</aside>
 
 # Design 🎨
 
 Everything to do with UX/UI, branding, philosophy. 
-
-<aside>
 🎨 🐌 Movement
 🏳️‍🌈 Colours
-
-</aside>
-
-[🚀 Features](https://www.notion.so/Features-4db008152da14a219e2c445faf3e80b5?pvs=21)
-
-[☑️ To-do, to-day](https://www.notion.so/To-do-to-day-2f77ac1c54e9465bb5c1c049a9b227f5?pvs=21)
-
-[🎨 Design](https://www.notion.so/Design-d72ed36604484e238b70449d4d781bb8?pvs=21)
-
-[Lists & Content](https://www.notion.so/Lists-Content-b8a6a80f437f494fb3278fe109024a7b?pvs=21)
