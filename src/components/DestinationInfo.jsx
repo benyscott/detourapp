@@ -3,23 +3,23 @@
 import React from 'react';
 import usePlaceStore from '@/store/placeStore';
 
-export default function DistanceInfo() {
-    const { distance, destination } = usePlaceStore();
+export default function DestinationInfo() {
+    const { destination } = usePlaceStore();
 
-    if (!destination || !distance) {
+    if (!destination) {
         return null;
     }
 
     return (
-        <p
-            id="distance"
+        <h2
+            id="destinationName"
             style={{
                 display: 'block',
-                opacity: distance ? 1 : 0,
+                opacity: destination ? 1 : 0,
                 transition: 'opacity 1s ease-in-out',
             }}
         >
-            {distance}
-        </p>
+            {destination.name}
+        </h2>
     );
 }

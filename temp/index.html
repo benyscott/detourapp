@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <!-- Google Tag Manager -->
+    <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+    'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+    })(window,document,'script','dataLayer','GTM-PQJCQVQW');</script>
+    <!-- End Google Tag Manager -->
+    
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-KRX1CP47BX"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'G-KRX1CP47BX');
+    </script>
+
+    <title>Detour: navigation meets zen</title>
+    <link rel="icon" type="image/png" href="manifest/icon-192x192.png" />
+    <link rel="manifest" href="manifest.json">
+    <link href="https://fonts.googleapis.com/css?family=Roboto" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap" rel="stylesheet">
+    <link href="css/base.css" rel="stylesheet">
+
+  </head>
+  <body>
+    <!-- Google Tag Manager (noscript) -->
+    <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-PQJCQVQW"
+    height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+    <!-- End Google Tag Manager (noscript) -->
+    
+    <div id="top_bar">
+      <div id="destinationName"></div>
+      <div id="distance"></div>
+    </div>
+
+    <div id="compass">
+      <div id="needle">
+        <div id="needleCircle"></div>
+      </div>
+    </div>
+
+    <div id="bottom_bar">  
+      <form id="search-place"><input type="text" id="search-input" placeholder="Where shall we go?"></form>
+      <div id="allowPermissionButton" onclick="startWay()">Let's go</div>
+      <div id="startWayButton" onclick="startWay()">Let's go</div>
+      <div id="stopWayButton" onclick="stopWay()"">X</div>
+    </div>
+
+    <!-- <div id="map" style="display:none;"></div> -->
+
+    <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
+    <script>
+      // const map = L.map('map').setView([51.505, -0.09], 13);
+      // L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      //   attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+      // }).addTo(map);
+
+      // const userLocationMarker = L.marker().addTo(map);
+      // const pointsOfInterest = [
+      //   { name: 'Cafe', latlng: [51.51, -0.12] },
+      //   { name: 'Park', latlng: [51.49, -0.08] },
+      //   // Add more points of interest here
+      // ];
+      // const poiMarkers = pointsOfInterest.map(poi => {
+      //   const marker = L.marker(poi.latlng).addTo(map);
+      //   marker.bindPopup(poi.name);
+      //   return marker;
+      // });
+      const pointsOfInterest = [
+        {
+          name: "Sagrada Família",
+          latlng: [41.4045, 2.1744]
+        },
+        {
+          name: "Park Güell",
+          latlng: [41.4149, 2.1520]
+        },
+        {
+          name: "La Rambla",
+          latlng: [41.3809, 2.1732]
+        },
+        {
+          name: "Gothic Quarter (Barri Gòtic)",
+          latlng: [41.3834, 2.1775]
+        },
+        {
+          name: "Casa Batlló",
+          latlng: [41.3916, 2.1649]
+        },
+        {
+          name: "Casa Milà (La Pedrera)",
+          latlng: [41.3953, 2.1617]
+        },
+        {
+          name: "Montjuïc Hill",
+          latlng: [41.3646, 2.1552]
+        },
+        {
+          name: "Barcelona Beaches",
+          latlng: [41.3781, 2.1875]
+        },
+        {
+          name: "Camp Nou",
+          latlng: [41.3809, 2.1228]
+        },
+        {
+          name: "Picasso Museum",
+          latlng: [41.3852, 2.1809]
+        },
+        {
+          name: "Palau de la Música Catalana",
+          latlng: [41.3870, 2.1754]
+        },
+        {
+          name: "Tibidabo Amusement Park",
+          latlng: [41.4216, 2.1174]
+        },
+        {
+          name: "Mercat de Sant Josep de la Boqueria",
+          latlng: [41.3817, 2.1725]
+        },
+        {
+          name: "Poble Espanyol",
+          latlng: [41.3686, 2.1501]
+        },
+        {
+          name: "Barcelona History Museum (MUHBA)",
+          latlng: [41.3834, 2.1775]
+        },
+        {
+          name: "Hospital de Sant Pau",
+          latlng: [41.4137, 2.1773]
+        },
+        {
+          name: "Plaça d'Espanya",
+          latlng: [41.3719, 2.1499]
+        },
+        {
+          name: "Park de la Ciutadella",
+          latlng: [41.3880, 2.1857]
+        },
+        {
+          name: "Barcelona Aquarium",
+          latlng: [41.3767, 2.1894]
+        },
+        {
+          name: "CosmoCaixa Barcelona",
+          latlng: [41.4133, 2.1349]
+        }
+      ]
+
+      const proximityThreshold = 10000; // meters
+      let userLocation = null;
+      let isEnRoute = false;
+      let destination = null;
+
+      function getUserLocation() {
+        console.log("getUserLocation...");
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(
+            (position) => {
+              const { coords } = position;
+              userLocation = [coords.latitude, coords.longitude];
+              // userLocationMarker.setLatLng(userLocation);
+              checkProximity();
+            },
+            (error) => console.error(error),
+            { enableHighAccuracy: true, maximumAge: 0 }
+          );
+        } else {
+          console.error('Geolocation is not supported by this browser.');
+        }
+      }
+
+      function checkProximity() {
+        console.log("checkProximity...");
+        if (!userLocation || isEnRoute) return;
+
+        let closestPoi = null;
+        let closestDistance = Infinity;
+
+        pointsOfInterest.forEach(poi => {
+          const distance = L.latLng(userLocation).distanceTo(poi.latlng);
+          console.log(distance);
+          const isNearby = distance <= proximityThreshold;
+          console.log(isNearby);
+
+          if (isNearby && distance < closestDistance) {
+            closestPoi = poi;
+            closestDistance = distance;
+          }
+        });
+
+        if (closestPoi) {
+          const prompt = confirm(`Wanna go to ${closestPoi.name}?`);
+          if (prompt) {
+            destination = closestPoi.latlng;
+            isEnRoute = true;
+            setDestinationCoords(closestPoi.latlng[0], closestPoi.latlng[1]);
+          }
+        }
+      }
+
+      function cancelJourney() {
+        destination = null;
+        isEnRoute = false;
+      }
+
+      getUserLocation();
+      setInterval(getUserLocation, 5000); // Update location every 5 seconds
+
+      map.on('click', (e) => {
+        if (destination) {
+          const prompt = confirm('Not going anymore?');
+          if (prompt) {
+            cancelJourney();
+          }
+        }
+      });
+    </script>
+    
+    <!-- CONSENT BOX
+    <div id="consentBox"> 
+      <div id="consentContent"> 
+          <p> 
+            We use cookies to make our site work well 
+            for you and so we can continually improve it. 
+            <br>The cookies that are necessary to  
+            keep the site functioning are always on 
+          </p> 
+          <div class="buttons"> 
+            <button class="consentButton">Accept Cookies</button> 
+            <button class="rejectButton">Reject</button> 
+          </div> 
+        </div> 
+      </div>
+      <style>
+        #consentBox { 
+            background: #fff; 
+            padding: 20px; 
+            border-radius: 15px; 
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2); 
+            text-align: center;
+            z-index:150000; 
+            position: absolute;
+        } 
+          
+        #consentBox.hide { 
+            opacity: 0; 
+            pointer-events: none; 
+            transform: scale(0.8); 
+            transition: all 0.3s ease; 
+        } 
+          
+        ::selection { 
+            color: #fff; 
+            background: #229a0f; 
+        } 
+          
+        #consentContent p { 
+            color: #858585; 
+            margin: 10px 0 20px 0; 
+        } 
+          
+        #consentContent .buttons { 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            margin-top: 20px; 
+        } 
+          
+        .consentButton, 
+        .rejectButton { 
+            padding: 12px 30px; 
+            border: none; 
+            outline: none; 
+            color: #fff; 
+            font-size: 16px; 
+            font-weight: 500; 
+            border-radius: 5px; 
+            cursor: pointer; 
+            transition: all 0.3s ease; 
+        } 
+          
+        .consentButton { 
+            background: #2a910b; 
+            margin-right: 10px; 
+        } 
+          
+        .rejectButton { 
+            color: #111211; 
+            background: transparent; 
+            border: 2px solid #099c2c; 
+            text-decoration: none; 
+        } 
+          
+        #consentBox img { 
+            max-width: 90px; 
+        } 
+          
+        #consentHeader { 
+            font-size: 25px; 
+            font-weight: 600; 
+            margin-top: 10px; 
+        }
+      </style>
+      <script>
+        const consentBox =  
+            document.getElementById("consentBox"); 
+        const acceptBtn =  
+            document.querySelector(".consentButton"); 
+        const rejectBtn =  
+            document.querySelector(".rejectButton"); 
+          
+        acceptBtn.onclick = () => { 
+            document.cookie = "CookieBy=GeeksForGeeks; max-age="
+                + 60 * 60 * 24; 
+            if (document.cookie) { 
+                consentBox.classList.add("hide"); 
+            } else { 
+                alert 
+                    ("Cookie can't be set! Please"+ 
+                      " unblock this site from the cookie"+ 
+                      " setting of your browser."); 
+            }
+
+             // Asks permission to the user for getting their location, and start tracking them, gives an alert if refused
+            console.log("askPermissionLocation called");
+
+            navigator.permissions.query({ name: "geolocation" }).then((result) => {
+                if (result.state === "granted") {
+                    // create cookie saying they've given permission
+                    // Therefore hiding the Ask permission button IF orientation permission is given too
+                    navigator.geolocation.watchPosition(positionHandler);	
+                } else if (result.state === "prompt") {
+                    console.log("Prompting...");
+                } else {
+                    alert("Well... we do need your location to be able to tell you where to go 😅");
+                }
+            });
+
+            // Asks permission to the user for getting their phone orientation, and start tracking them, gives an alert if refused
+            console.log("askPermissionOrientation called");
+
+            // Adds an eventListener for the device orientation event
+            if (!isIOS) {
+                console.log("Not iOS")
+                window.addEventListener("deviceorientationabsolute", orientationHandler, true);
+            } else {
+                console.log("Webkit/iOS")
+                DeviceOrientationEvent.requestPermission()
+                    .then((response) => {
+                        if (response === "granted") {
+                            window.addEventListener("deviceorientation", orientationHandler, true);
+                        } else {
+                            alert("Device orientation has to be allowed!");
+                        }
+                    })
+                    .catch(() => alert("Device orientation is not supported"));
+            }
+        }; 
+          
+        rejectBtn.onclick = () => { 
+            alert( 
+                "Cookies rejected. Some functionality may be limited."); 
+            consentBox.classList.add("hide"); 
+        }; 
+          
+        let checkCookie =  
+            document.cookie.indexOf("CookieBy=GeeksForGeeks"); 
+        checkCookie !== -1 ? consentBox.classList.add("hide") : 
+            consentBox.classList.remove("hide");
+      </script>
+      -->
+
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBS5Pz4rKJ08TrWOVL0O8w8aBehwUIKvEI&libraries=places&callback=setDestination">
+      function initMap() {
+        setDestination();
+      }
+    </script>
+    <script src="js/main.js">
+      // Register service worker
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('js/sw.js');
+      }
+
+      // Install button for the PWA
+      let deferredPrompt;
+
+      window.addEventListener('beforeinstallprompt', function(event) {
+        event.preventDefault();
+        deferredPrompt = event;
+        showInstallButton();
+      });
+
+      function showInstallButton() {
+      let button = document.createElement('button');
+      button.innerText = 'Install App';
+      button.addEventListener('click', function() {
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then(function(choiceResult) {
+        if (choiceResult.outcome === 'accepted') {
+          console.log('User installed app');
+        } else {
+          console.log('User dismissed install prompt');
+        }
+        deferredPrompt = null;
+        });
+      });
+      // add the button to your HTML document
+      document.body.appendChild(button);
+      }
+    </script>
+  </body>
+</html>
