@@ -32,14 +32,17 @@ export default function PlaceSearch() {
         setIsSearching(true);
         searchTimeoutRef.current = setTimeout(async () => {
             try {
+                console.log('[PlaceSearch] Searching for:', searchQuery);
                 const response = await fetch(`/api/places?q=${encodeURIComponent(searchQuery)}`);
                 if (!response.ok) throw new Error('Search failed');
 
                 const data = await response.json();
-                setResults(data.results || []);
+                const results = data.results || [];
+                console.log('[PlaceSearch] Found', results.length, 'results');
+                setResults(results);
                 setShowResults(true);
             } catch (error) {
-                console.error('Error searching places:', error);
+                console.error('[PlaceSearch] Search error:', error);
                 setResults([]);
             } finally {
                 setIsSearching(false);
@@ -48,6 +51,7 @@ export default function PlaceSearch() {
     }, [searchQuery]);
 
     const handleSelectPlace = (place) => {
+        console.log('[PlaceSearch] Place selected:', place.name);
         setDestination({
             latitude: place.latitude,
             longitude: place.longitude,
@@ -60,10 +64,12 @@ export default function PlaceSearch() {
 
     const handleStartWay = () => {
         if (!destination) return;
+        console.log('[PlaceSearch] Starting navigation to:', destination.name);
         setIsTracking(true);
     };
 
     const handleStopWay = () => {
+        console.log('[PlaceSearch] Stopping navigation');
         setIsTracking(false);
         clearDestination();
         setSearchQuery('');

@@ -27,6 +27,12 @@ export default function useNavigation() {
                 destination.longitude
             );
             setAngle(bearingAngle);
+
+            console.log('[Navigation] Calculated', { 
+                distance: formattedDistance, 
+                angle: bearingAngle.toFixed(1) + '°',
+                destination: destination.name 
+            });
         } else {
             setDistance(null);
             setAngle(null);

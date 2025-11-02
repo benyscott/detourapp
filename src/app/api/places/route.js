@@ -21,6 +21,7 @@ export async function GET(request) {
   }
 
   try {
+    console.log('[API] Places search:', query);
     const encodedQuery = encodeURIComponent(query);
     const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodedQuery}.json?access_token=${accessToken}&limit=5`;
     
@@ -28,6 +29,7 @@ export async function GET(request) {
     
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
+      console.error('[API] Mapbox error:', response.status, errorData);
       return NextResponse.json(
         { error: errorData.message || 'Mapbox API error' },
         { status: response.status }
@@ -47,9 +49,10 @@ export async function GET(request) {
       context: feature.context,
     }));
     
+    console.log('[API] Returning', results.length, 'places');
     return NextResponse.json({ results });
   } catch (error) {
-    console.error('Error in places API route:', error);
+    console.error('[API] Error in places route:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
