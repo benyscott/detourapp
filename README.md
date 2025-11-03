@@ -1,7 +1,7 @@
 App name: Detour
 Description: An app that displays a compass pointing to different POIs with estimated time to walk or cycle
-Metadata:
-# Navigation meets zen
+
+# Detour - Navigation meets zen
 
 Bringing travelling to your city / Discovering your neighbourhood
 
@@ -78,7 +78,109 @@ Some to be launched with the MVP, the rest to be integrated as the project grows
 
 Everything to do with UX/UI, branding, philosophy. 
 <aside>
-🎨 🐌 Movement
+🎨 🐌 Movement
 
-🏳️‍🌈 Colours
+🏳️‍🌈 Colours
 </aside>
+
+---
+
+# Development Setup 🛠️
+
+## Prerequisites
+- Node.js 18+ and pnpm
+- Google Places API key (see [GOOGLE_PLACES_SETUP.md](./GOOGLE_PLACES_SETUP.md))
+- Mapbox access token (optional, for map display)
+
+## Environment Variables
+
+Create a `.env.local` file in the project root:
+
+```bash
+# Required: Google Places API key for location search
+NEXT_PUBLIC_GOOGLE_PLACES_API_KEY=your_google_places_api_key
+
+# Optional: Mapbox token for map display (future feature)
+NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN=your_mapbox_token
+
+# Optional: Choose location provider ('google' or 'mapbox')
+# Default: google
+NEXT_PUBLIC_LOCATION_PROVIDER=google
+```
+
+## Installation
+
+```bash
+# Install dependencies
+pnpm install
+
+# Run development server with HTTPS (required for geolocation on mobile)
+pnpm run dev:https
+
+# Or run without HTTPS (desktop only)
+pnpm run dev
+```
+
+## Testing on Mobile
+
+1. Ensure your phone and computer are on the same WiFi network
+2. Find your computer's local IP address
+3. On your phone, navigate to: `https://<your-ip>:3000`
+4. Accept the self-signed certificate warning
+
+For detailed Google Places API setup, see [GOOGLE_PLACES_SETUP.md](./GOOGLE_PLACES_SETUP.md)
+
+## Architecture
+
+The app uses a **service layer pattern** for location APIs:
+
+```
+PlaceSearch Component
+    ↓
+Location Service Factory
+    ↓
+┌──────────┬──────────┬──────────┐
+│  Google  │  Mapbox  │   OSM    │
+│  Places  │          │ (future) │
+└──────────┴──────────┴──────────┘
+```
+
+This makes it easy to switch between providers or add new ones. See:
+- `src/services/locationService.js` - Base interface
+- `src/services/providers/` - Provider implementations
+- `src/services/locationServiceFactory.js` - Provider selection
+
+## Key Features
+
+- 🧭 **Compass navigation** - Points to your destination with device orientation
+- 📍 **Smart search** - Find businesses and places with Google Places API
+- 🗺️ **Country filtering** - Automatically limits search to your country (IP-based)
+- 📏 **Adjustable radius** - Configure search radius in settings (1-20km)
+- 💰 **Cost optimized** - Session tokens and smart caching keep API costs low
+- 🔄 **Provider flexibility** - Easy to switch between location providers
+
+## Project Structure
+
+```
+src/
+├── app/
+│   ├── (root)/           # Main compass page
+│   ├── api/              # API routes
+│   │   ├── places/       # Text search
+│   │   ├── nearby/       # Nearby search
+│   │   └── place-details/ # Detailed place info
+│   └── settings/         # Settings page
+├── components/           # UI components
+├── hooks/               # Custom React hooks
+├── lib/                 # Utilities
+│   └── countryDetection.js # IP-based country detection
+├── services/            # Location service abstraction
+│   ├── locationService.js
+│   ├── locationServiceFactory.js
+│   └── providers/
+│       ├── googlePlacesProvider.js
+│       └── mapboxProvider.js
+└── store/              # Zustand state management
+    ├── placeStore.js
+    └── settingsStore.js
+```
