@@ -48,3 +48,6 @@ certificates
 server.key
 server.crt
 server.csr
+
+# documentation
+/documentation
