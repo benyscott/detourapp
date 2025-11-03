@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import usePlaceStore from '@/store/placeStore';
+import useSettingsStore from '@/store/settingsStore';
 import useGeolocation from '@/hooks/useGeolocation';
 
 export default function PlaceSearch() {
@@ -12,11 +13,13 @@ export default function PlaceSearch() {
     const searchTimeoutRef = useRef(null);
     const searchInputRef = useRef(null);
 
-    const { destination, setDestination, clearDestination } = usePlaceStore();
+    const { destination, setDestination, clearDestination, currentLocation } = usePlaceStore();
+    const { searchRadius } = useSettingsStore();
     const [isTracking, setIsTracking] = useState(false);
-    const { error: geoError } = useGeolocation(isTracking);
+    const [isSearchMode, setIsSearchMode] = useState(true); // Track location for search filtering
+    const { error: geoError } = useGeolocation(isTracking || isSearchMode);
 
-    // Debounced search
+    // Debounced search - only triggered by query change, not location updates
     useEffect(() => {
         if (searchTimeoutRef.current) {
             clearTimeout(searchTimeoutRef.current);
@@ -29,16 +32,39 @@ export default function PlaceSearch() {
             return;
         }
 
+        // Don't search for very short queries
+        if (searchQuery.trim().length < 3) {
+            console.log('[PlaceSearch] Query too short, waiting for more characters...');
+            return;
+        }
+
         setIsSearching(true);
         searchTimeoutRef.current = setTimeout(async () => {
             try {
-                console.log('[PlaceSearch] Searching for:', searchQuery);
-                const response = await fetch(`/api/places?q=${encodeURIComponent(searchQuery)}`);
-                if (!response.ok) throw new Error('Search failed');
+                console.log('[PlaceSearch] Searching for:', searchQuery, 'with radius:', searchRadius);
+                
+                // Build query params - use current location at time of search
+                const params = new URLSearchParams({ 
+                    q: searchQuery,
+                    radius: searchRadius.toString(),
+                });
+                
+                // Capture current location to avoid using stale value
+                const searchLocation = currentLocation;
+                if (searchLocation) {
+                    params.append('lat', searchLocation.latitude.toString());
+                    params.append('lng', searchLocation.longitude.toString());
+                }
+                
+                const response = await fetch(`/api/places?${params.toString()}`);
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.error || 'Search failed');
+                }
 
                 const data = await response.json();
                 const results = data.results || [];
-                console.log('[PlaceSearch] Found', results.length, 'results');
+                console.log('[PlaceSearch] Found', results.length, 'results within', searchRadius / 1000, 'km');
                 setResults(results);
                 setShowResults(true);
             } catch (error) {
@@ -47,8 +73,8 @@ export default function PlaceSearch() {
             } finally {
                 setIsSearching(false);
             }
-        }, 300);
-    }, [searchQuery]);
+        }, 600); // Increased debounce to 600ms
+    }, [searchQuery, searchRadius]); // Removed currentLocation from dependencies!
 
     const handleSelectPlace = (place) => {
         console.log('[PlaceSearch] Place selected:', place.name);
@@ -60,6 +86,7 @@ export default function PlaceSearch() {
         setSearchQuery('');
         setResults([]);
         setShowResults(false);
+        setIsSearchMode(false); // Stop location tracking for search when destination is selected
     };
 
     const handleStartWay = () => {
@@ -73,6 +100,7 @@ export default function PlaceSearch() {
         setIsTracking(false);
         clearDestination();
         setSearchQuery('');
+        setIsSearchMode(true); // Resume location tracking for search
         if (searchInputRef.current) {
             searchInputRef.current.focus();
         }
