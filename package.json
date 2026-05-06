@@ -1,9 +1,10 @@
 {
   "name": "detour-nextjs",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --experimental-https",
+    "dev:https": "node server.js",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
@@ -11,12 +12,15 @@
   "dependencies": {
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "cmdk": "^1.1.1",
     "lucide-react": "^0.552.0",
     "mapbox-gl": "^3.16.0",
     "next": "16.0.0",
+    "radix-ui": "^1.4.3",
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "tailwind-merge": "^3.3.1",
+    "vaul": "^1.1.2",
     "zustand": "^5.0.8"
   },
   "devDependencies": {

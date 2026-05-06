@@ -43,18 +43,18 @@ export function formatDistance(distanceInMeters) {
 }
 
 /**
- * Calculate the bearing angle between two coordinates
- * @param {number} lat1 - Latitude of first point
- * @param {number} lon1 - Longitude of first point
- * @param {number} lat2 - Latitude of second point
- * @param {number} lon2 - Longitude of second point
- * @returns {number} Bearing angle in degrees
+ * Initial bearing from point 1 to point 2 (clockwise from true north), 0–360°.
+ * Uses the standard spherical formula (not the planar atan2(Δlon, Δlat) shortcut).
  */
 export function calculateAngle(lat1, lon1, lat2, lon2) {
-    const deltaLatitude = lat2 - lat1;
-    const deltaLongitude = lon2 - lon1;
+    const φ1 = (lat1 * Math.PI) / 180;
+    const φ2 = (lat2 * Math.PI) / 180;
+    const Δλ = ((lon2 - lon1) * Math.PI) / 180;
 
-    // Calculate the angle in degrees
-    return Math.atan2(deltaLongitude, deltaLatitude) * 180 / Math.PI;
+    const y = Math.sin(Δλ) * Math.cos(φ2);
+    const x = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
+    const θ = (Math.atan2(y, x) * 180) / Math.PI;
+
+    return (θ + 360) % 360;
 }
 

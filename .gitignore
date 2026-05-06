@@ -39,3 +39,15 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# SSL certificates (local development)
+certificates
+*.crt
+*.key
+*.csr
+server.key
+server.crt
+server.csr
+
+# documentation
+/documentation

@@ -3,20 +3,29 @@ import { create } from 'zustand';
 const usePlaceStore = create((set) => ({
     // State
     currentLocation: null, // { latitude, longitude }
-    destination: null, // { latitude, longitude, name }
+    destination: null, // { id, latitude, longitude, name }
     distance: null, // string (formatted distance)
     angle: null, // number (bearing in degrees)
 
     // Actions
-    setCurrentLocation: (location) => set({ currentLocation: location }),
+    setCurrentLocation: (location) => {
+        console.log('[Store] Current location updated', location);
+        set({ currentLocation: location });
+    },
 
-    setDestination: (destination) => set({ destination }),
+    setDestination: (destination) => {
+        console.log('[Store] Destination set', destination);
+        set({ destination });
+    },
 
-    clearDestination: () => set({
-        destination: null,
-        distance: null,
-        angle: null
-    }),
+    clearDestination: () => {
+        console.log('[Store] Destination cleared');
+        set({
+            destination: null,
+            distance: null,
+            angle: null,
+        });
+    },
 
     setDistance: (distance) => set({ distance }),
 
@@ -24,4 +33,3 @@ const usePlaceStore = create((set) => ({
 }));
 
 export default usePlaceStore;
-

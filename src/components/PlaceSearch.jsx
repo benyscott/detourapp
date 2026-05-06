@@ -1,8 +1,13 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { Loader2 } from 'lucide-react';
 import usePlaceStore from '@/store/placeStore';
+import useSettingsStore from '@/store/settingsStore';
 import useGeolocation from '@/hooks/useGeolocation';
+import { Command, CommandEmpty, CommandItem, CommandList } from '@/components/ui/command';
+import { Input } from '@/components/ui/input';
+import DestinationBottomPanel from '@/components/DestinationBottomPanel';
 
 export default function PlaceSearch() {
     const [searchQuery, setSearchQuery] = useState('');
@@ -11,12 +16,32 @@ export default function PlaceSearch() {
     const [showResults, setShowResults] = useState(false);
     const searchTimeoutRef = useRef(null);
     const searchInputRef = useRef(null);
+    const locationRef = useRef(null);
+    const hideResultsTimeoutRef = useRef(null);
 
-    const { destination, setDestination, clearDestination } = usePlaceStore();
-    const [isTracking, setIsTracking] = useState(false);
-    const { error: geoError } = useGeolocation(isTracking);
+    const { destination, setDestination, currentLocation } = usePlaceStore();
+    const { searchRadius } = useSettingsStore();
+    const { error: geoError } = useGeolocation(true);
 
-    // Debounced search
+    useEffect(() => {
+        locationRef.current = currentLocation;
+    }, [currentLocation]);
+
+    useEffect(() => {
+        if (!destination && searchInputRef.current) {
+            searchInputRef.current.focus();
+        }
+    }, [destination]);
+
+    useEffect(() => {
+        return () => {
+            if (hideResultsTimeoutRef.current !== null) {
+                window.clearTimeout(hideResultsTimeoutRef.current);
+            }
+        };
+    }, []);
+
+    // Debounced search - only triggered by query change, not location updates
     useEffect(() => {
         if (searchTimeoutRef.current) {
             clearTimeout(searchTimeoutRef.current);
@@ -29,26 +54,59 @@ export default function PlaceSearch() {
             return;
         }
 
+        // Don't search for very short queries — keep panel closed so focus doesn't reserve popper/layout space
+        if (searchQuery.trim().length < 3) {
+            console.log('[PlaceSearch] Query too short, waiting for more characters...');
+            setShowResults(false);
+            return;
+        }
+
         setIsSearching(true);
         searchTimeoutRef.current = setTimeout(async () => {
             try {
-                const response = await fetch(`/api/places?q=${encodeURIComponent(searchQuery)}`);
-                if (!response.ok) throw new Error('Search failed');
+                console.log('[PlaceSearch] Searching for:', searchQuery, 'with radius:', searchRadius);
+                
+                // Build query params - use current location at time of search
+                const params = new URLSearchParams({ 
+                    q: searchQuery,
+                    radius: searchRadius.toString(),
+                });
+                
+                // Capture current location to avoid using stale value
+                const searchLocation = locationRef.current;
+                if (searchLocation) {
+                    params.append('lat', searchLocation.latitude.toString());
+                    params.append('lng', searchLocation.longitude.toString());
+                }
+                
+                const response = await fetch(`/api/places?${params.toString()}`);
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.error || 'Search failed');
+                }
 
                 const data = await response.json();
-                setResults(data.results || []);
+                const results = data.results || [];
+                console.log('[PlaceSearch] Found', results.length, 'results within', searchRadius / 1000, 'km');
+                setResults(results);
                 setShowResults(true);
             } catch (error) {
-                console.error('Error searching places:', error);
+                console.error('[PlaceSearch] Search error:', error);
                 setResults([]);
             } finally {
                 setIsSearching(false);
             }
-        }, 300);
-    }, [searchQuery]);
+        }, 600); // Increased debounce to 600ms
+    }, [searchQuery, searchRadius]);
 
     const handleSelectPlace = (place) => {
+        if (hideResultsTimeoutRef.current !== null) {
+            window.clearTimeout(hideResultsTimeoutRef.current);
+            hideResultsTimeoutRef.current = null;
+        }
+        console.log('[PlaceSearch] Place selected:', place.name);
         setDestination({
+            id: place.id,
             latitude: place.latitude,
             longitude: place.longitude,
             name: place.name,
@@ -58,85 +116,98 @@ export default function PlaceSearch() {
         setShowResults(false);
     };
 
-    const handleStartWay = () => {
-        if (!destination) return;
-        setIsTracking(true);
-    };
+    // Hide search input when destination is selected
+    const showSearchInput = !destination;
+    const shouldShowPopover = showSearchInput && showResults && searchQuery.trim().length >= 3;
 
-    const handleStopWay = () => {
-        setIsTracking(false);
-        clearDestination();
-        setSearchQuery('');
-        if (searchInputRef.current) {
-            searchInputRef.current.focus();
+    const handleSearchFocus = () => {
+        if (hideResultsTimeoutRef.current !== null) {
+            window.clearTimeout(hideResultsTimeoutRef.current);
+            hideResultsTimeoutRef.current = null;
+        }
+        if (searchQuery.trim().length >= 3) {
+            setShowResults(true);
         }
     };
 
-    // Hide search input when destination is selected
-    const showSearchInput = !destination;
-    const showStartButton = destination && !isTracking;
-    const showStopButton = destination && isTracking;
+    const handleSearchBlur = () => {
+        hideResultsTimeoutRef.current = window.setTimeout(() => {
+            setShowResults(false);
+            hideResultsTimeoutRef.current = null;
+        }, 180);
+    };
 
     return (
-        <div className="bottom-bar">
+        <div className="fixed right-0 bottom-0 left-0 z-[100] flex flex-col items-center gap-3 p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))]">
+            {destination && <DestinationBottomPanel />}
             {showSearchInput && (
-                <form
-                    id="search-place"
-                    onSubmit={(e) => {
-                        e.preventDefault();
-                        if (results.length > 0) {
-                            handleSelectPlace(results[0]);
-                        }
-                    }}
-                >
-                    <input
-                        ref={searchInputRef}
-                        type="text"
-                        id="search-input"
-                        placeholder="Where shall we go?"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        onFocus={() => setShowResults(results.length > 0)}
-                        onBlur={() => {
-                            // Delay hiding results to allow click on result
-                            setTimeout(() => setShowResults(false), 200);
+                <div className="relative w-full max-w-md">
+                    <form
+                        onSubmit={(e) => {
+                            e.preventDefault();
+                            if (results.length > 0) {
+                                handleSelectPlace(results[0]);
+                            }
                         }}
-                    />
-                    {showResults && results.length > 0 && (
-                        <div className="search-results">
-                            {results.map((place) => (
-                                <div
-                                    key={place.id}
-                                    className="search-result-item"
-                                    onClick={() => handleSelectPlace(place)}
-                                    onMouseDown={(e) => e.preventDefault()} // Prevent onBlur
-                                >
-                                    <div className="result-name">{place.name}</div>
-                                    {place.place_name !== place.name && (
-                                        <div className="result-place">{place.place_name}</div>
+                    >
+                        <Input
+                            ref={searchInputRef}
+                            type="text"
+                            placeholder="Where shall we go?"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            onFocus={handleSearchFocus}
+                            onBlur={handleSearchBlur}
+                            className="bg-background/85 backdrop-blur-sm"
+                        />
+                    </form>
+                    {shouldShowPopover && (
+                        <div
+                            role="presentation"
+                            className="bg-popover text-popover-foreground absolute bottom-full left-0 right-0 z-50 mb-2 overflow-hidden rounded-md border shadow-md"
+                            onMouseDown={(e) => e.preventDefault()}
+                        >
+                            <Command shouldFilter={false}>
+                                <CommandList className="max-h-[min(50vh,300px)]">
+                                    {isSearching && (
+                                        <div className="text-muted-foreground flex items-center justify-center gap-2 py-4 text-sm">
+                                            <Loader2 className="size-4 animate-spin" />
+                                            Searching...
+                                        </div>
                                     )}
-                                </div>
-                            ))}
+                                    {!isSearching && (
+                                        <>
+                                            <CommandEmpty>No places found nearby.</CommandEmpty>
+                                            {results.map((place) => (
+                                                <CommandItem
+                                                    key={place.id}
+                                                    value={place.name}
+                                                    onSelect={() => handleSelectPlace(place)}
+                                                    className="h-auto cursor-pointer py-2"
+                                                >
+                                                    <div className="flex w-full flex-col">
+                                                        <span className="font-medium">{place.name}</span>
+                                                        {place.place_name !== place.name && (
+                                                            <span className="text-muted-foreground text-xs">
+                                                                {place.place_name}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </CommandItem>
+                                            ))}
+                                        </>
+                                    )}
+                                </CommandList>
+                            </Command>
                         </div>
                     )}
-                    {isSearching && <div className="search-loading">Searching...</div>}
-                </form>
-            )}
-
-            {showStartButton && (
-                <div id="startWayButton" onClick={handleStartWay}>
-                    Let's go
-                </div>
-            )}
-
-            {showStopButton && (
-                <div id="stopWayButton" onClick={handleStopWay}>
-                    X
                 </div>
             )}
 
             {geoError && (
-                <div className="error-message">{geoError}</div>
+                <p className="rounded-md bg-destructive/10 px-3 py-2 text-center text-sm text-destructive">
+                    {geoError}
+                </p>
             )}
         </div>
     );

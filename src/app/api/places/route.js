@@ -1,8 +1,13 @@
 import { NextResponse } from 'next/server';
+import { getLocationService } from '@/services/locationServiceFactory';
+import { getCountryFromIP } from '@/lib/countryDetection';
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const query = searchParams.get('q');
+  const lat = searchParams.get('lat');
+  const lng = searchParams.get('lng');
+  const radius = searchParams.get('radius'); // From settings store
 
   if (!query || query.trim().length === 0) {
     return NextResponse.json(
@@ -11,47 +16,48 @@ export async function GET(request) {
     );
   }
 
-  const accessToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
-
-  if (!accessToken) {
-    return NextResponse.json(
-      { error: 'Mapbox access token is not configured' },
-      { status: 500 }
-    );
-  }
-
   try {
-    const encodedQuery = encodeURIComponent(query);
-    const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodedQuery}.json?access_token=${accessToken}&limit=5`;
-    
-    const response = await fetch(url);
-    
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      return NextResponse.json(
-        { error: errorData.message || 'Mapbox API error' },
-        { status: response.status }
-      );
-    }
-    
-    const data = await response.json();
-    
-    // Transform Mapbox results to our format
-    const results = data.features.map((feature) => ({
-      id: feature.id,
-      name: feature.text || feature.place_name,
-      place_name: feature.place_name,
-      coordinates: feature.center, // [lng, lat]
-      latitude: feature.center[1],
-      longitude: feature.center[0],
-      context: feature.context,
-    }));
-    
+    console.log('[API] Places search:', query, {
+      location: lat && lng ? `(${lat}, ${lng})` : 'none',
+      radius: radius ? `${radius}m` : 'default',
+    });
+
+    // Get user's country from IP (free and fast)
+    const userCountryCode = await getCountryFromIP();
+    console.log('[API] User country:', userCountryCode);
+
+    // Get the configured location service
+    const locationService = getLocationService();
+
+    // Search for places using the service
+    const places = await locationService.searchPlaces(query, {
+      latitude: lat ? parseFloat(lat) : null,
+      longitude: lng ? parseFloat(lng) : null,
+      radius: radius ? parseInt(radius) : 5000, // Default 5km
+      countryCode: userCountryCode,
+    });
+
+    console.log('[API] Found', places.length, 'places');
+
+    // Convert to JSON format
+    const results = places.map(place => place.toJSON());
+
     return NextResponse.json({ results });
   } catch (error) {
-    console.error('Error in places API route:', error);
+    console.error('[API] Error in places route:', error);
+
+    // Return more helpful error message
+    const errorMessage = error.message || 'Internal server error';
+    const isGoogleApiError = errorMessage.includes('Google Places');
+
     return NextResponse.json(
-      { error: 'Internal server error' },
+      {
+        error: isGoogleApiError ? 'Search service error' : 'Internal server error',
+        details: errorMessage,
+        hint: isGoogleApiError
+          ? 'Check that Google Places API is enabled and API key is valid in Google Cloud Console'
+          : 'See server logs for details'
+      },
       { status: 500 }
     );
   }

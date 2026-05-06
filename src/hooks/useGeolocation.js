@@ -18,6 +18,7 @@ export default function useGeolocation(isTracking = false) {
         if (!isTracking) {
             // Stop watching if tracking is disabled
             if (watchIdRef.current !== null) {
+                console.log('[Geolocation] Stopping location tracking');
                 navigator.geolocation.clearWatch(watchIdRef.current);
                 watchIdRef.current = null;
                 setIsWatching(false);
@@ -30,17 +31,20 @@ export default function useGeolocation(isTracking = false) {
             return;
         }
 
+        console.log('[Geolocation] Starting location tracking');
+
         const positionHandler = (position) => {
             const { latitude, longitude } = position.coords;
             const newLocation = { latitude, longitude };
 
+            console.log('[Geolocation] Location update', { latitude, longitude });
             setLocation(newLocation);
             setCurrentLocation(newLocation);
             setError(null);
         };
 
         const errorHandler = (err) => {
-            console.error('Geolocation error:', err);
+            console.error('[Geolocation] Error:', err.code, err.message);
             setError('Unable to get your location. Please allow location access.');
             setIsWatching(false);
             if (watchIdRef.current !== null) {
