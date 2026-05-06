@@ -1,8 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { X } from 'lucide-react';
 import usePlaceStore from '@/store/placeStore';
 import useSettingsStore from '@/store/settingsStore';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 
 const RECOMMENDATION_TYPES = [
     { value: 'restaurant', label: '🍽️ Restaurants', emoji: '🍽️' },
@@ -80,130 +84,80 @@ export default function Recommendations() {
     }
 
     return (
-        <div style={{
-            position: 'fixed',
-            bottom: '80px',
-            left: 0,
-            right: 0,
-            padding: '0 1rem',
-            zIndex: 100,
-        }}>
+        <div className="fixed right-0 bottom-20 left-0 z-[90] px-4">
             {/* Type selector */}
             {!selectedType && (
-                <div style={{
-                    display: 'flex',
-                    gap: '0.5rem',
-                    overflowX: 'auto',
-                    padding: '0.5rem',
-                    background: 'rgba(0, 0, 0, 0.5)',
-                    backdropFilter: 'blur(10px)',
-                    borderRadius: '1rem',
-                }}>
-                    {RECOMMENDATION_TYPES.map((type) => (
-                        <button
-                            key={type.value}
-                            onClick={() => handleTypeSelect(type.value)}
-                            style={{
-                                flex: '0 0 auto',
-                                padding: '0.75rem 1rem',
-                                background: 'rgba(255, 255, 255, 0.1)',
-                                border: 'none',
-                                borderRadius: '0.75rem',
-                                color: 'white',
-                                fontSize: '0.875rem',
-                                cursor: 'pointer',
-                                transition: 'all 0.2s',
-                                whiteSpace: 'nowrap',
-                            }}
-                        >
-                            {type.emoji} {type.label.split(' ')[1]}
-                        </button>
-                    ))}
-                </div>
+                <ScrollArea className="w-full rounded-2xl border bg-card/80 p-2 backdrop-blur-md">
+                    <div className="flex w-max gap-2">
+                        {RECOMMENDATION_TYPES.map((type) => (
+                            <Button
+                                key={type.value}
+                                variant="secondary"
+                                size="sm"
+                                className="whitespace-nowrap"
+                                onClick={() => handleTypeSelect(type.value)}
+                            >
+                                {type.emoji} {type.label.split(' ')[1]}
+                            </Button>
+                        ))}
+                    </div>
+                    <ScrollBar orientation="horizontal" />
+                </ScrollArea>
             )}
 
             {/* Results */}
             {selectedType && (
-                <div style={{
-                    background: 'rgba(0, 0, 0, 0.9)',
-                    backdropFilter: 'blur(20px)',
-                    borderRadius: '1rem',
-                    padding: '1rem',
-                    maxHeight: '50vh',
-                    overflowY: 'auto',
-                }}>
-                    <div style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        marginBottom: '1rem',
-                    }}>
-                        <h3 style={{ color: 'white', margin: 0 }}>
-                            {RECOMMENDATION_TYPES.find(t => t.value === selectedType)?.label}
-                        </h3>
-                        <button
+                <Card className="bg-card/90 backdrop-blur-lg">
+                    <CardHeader className="flex-row items-center justify-between space-y-0">
+                        <CardTitle className="text-base">
+                            {RECOMMENDATION_TYPES.find((type) => type.value === selectedType)?.label}
+                        </CardTitle>
+                        <Button
+                            variant="ghost"
+                            size="icon-sm"
                             onClick={handleClose}
-                            style={{
-                                background: 'none',
-                                border: 'none',
-                                color: 'white',
-                                fontSize: '1.5rem',
-                                cursor: 'pointer',
-                                padding: '0',
-                                width: '2rem',
-                                height: '2rem',
-                            }}
+                            aria-label="Close recommendations"
                         >
-                            ×
-                        </button>
-                    </div>
-
-                    {isLoading ? (
-                        <div style={{ color: '#999', textAlign: 'center', padding: '2rem' }}>
-                            Loading...
-                        </div>
-                    ) : recommendations.length === 0 ? (
-                        <div style={{ color: '#999', textAlign: 'center', padding: '2rem' }}>
-                            No {selectedType}s found nearby
-                        </div>
-                    ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                            {recommendations.map((place) => (
-                                <div
-                                    key={place.id}
-                                    onClick={() => handleSelectPlace(place)}
-                                    style={{
-                                        padding: '0.75rem',
-                                        background: 'rgba(255, 255, 255, 0.05)',
-                                        borderRadius: '0.5rem',
-                                        cursor: 'pointer',
-                                        transition: 'all 0.2s',
-                                    }}
-                                    onMouseEnter={(e) => {
-                                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
-                                    }}
-                                    onMouseLeave={(e) => {
-                                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
-                                    }}
-                                >
-                                    <div style={{ color: 'white', fontWeight: '500' }}>
-                                        {place.name}
-                                    </div>
-                                    {place.place_name && place.place_name !== place.name && (
-                                        <div style={{ color: '#999', fontSize: '0.875rem', marginTop: '0.25rem' }}>
-                                            {place.place_name}
-                                        </div>
-                                    )}
-                                    {place.distance && (
-                                        <div style={{ color: '#007AFF', fontSize: '0.75rem', marginTop: '0.25rem' }}>
-                                            {(place.distance / 1000).toFixed(1)} km away
-                                        </div>
-                                    )}
+                            <X />
+                        </Button>
+                    </CardHeader>
+                    <CardContent>
+                        {isLoading ? (
+                            <p className="py-8 text-center text-sm text-muted-foreground">Loading...</p>
+                        ) : recommendations.length === 0 ? (
+                            <p className="py-8 text-center text-sm text-muted-foreground">
+                                No {selectedType}s found nearby
+                            </p>
+                        ) : (
+                            <ScrollArea className="max-h-[50vh] pr-2">
+                                <div className="space-y-2">
+                                    {recommendations.map((place) => (
+                                        <Button
+                                            key={place.id}
+                                            variant="ghost"
+                                            className="h-auto w-full justify-start rounded-lg border px-3 py-3 text-left"
+                                            onClick={() => handleSelectPlace(place)}
+                                        >
+                                            <div className="flex w-full flex-col gap-1">
+                                                <span className="font-medium">{place.name}</span>
+                                                {place.place_name && place.place_name !== place.name && (
+                                                    <span className="text-xs text-muted-foreground">
+                                                        {place.place_name}
+                                                    </span>
+                                                )}
+                                                {place.distance && (
+                                                    <span className="text-xs text-primary">
+                                                        {(place.distance / 1000).toFixed(1)} km away
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </Button>
+                                    ))}
                                 </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
+                            </ScrollArea>
+                        )}
+                    </CardContent>
+                </Card>
             )}
         </div>
     );

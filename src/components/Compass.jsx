@@ -3,6 +3,15 @@
 import React, { useState } from 'react';
 import styles from './Compass.module.css';
 import useCompass from '@/hooks/useCompass';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 export default function Compass() {
     const { needleRotation, isActive, requestPermission, needsPermission } = useCompass();
@@ -20,40 +29,21 @@ export default function Compass() {
 
     return (
         <div id={styles.compass}>
-            {needsPermission && (
-                <div style={{
-                    position: 'absolute',
-                    top: '50%',
-                    left: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    zIndex: 1000,
-                    background: 'rgba(0, 0, 0, 0.9)',
-                    color: 'white',
-                    padding: '2rem',
-                    borderRadius: '1rem',
-                    textAlign: 'center',
-                    maxWidth: '80%'
-                }}>
-                    <p style={{ marginBottom: '1rem' }}>
-                        Enable device orientation to use the compass
-                    </p>
-                    <button
-                        onClick={handleRequestPermission}
-                        disabled={isRequesting}
-                        style={{
-                            padding: '0.75rem 1.5rem',
-                            fontSize: '1rem',
-                            backgroundColor: '#007AFF',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '0.5rem',
-                            cursor: 'pointer'
-                        }}
-                    >
-                        {isRequesting ? 'Requesting...' : 'Enable Compass'}
-                    </button>
-                </div>
-            )}
+            <AlertDialog open={needsPermission}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Compass permission required</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Enable device orientation access to activate the compass.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogAction onClick={handleRequestPermission} disabled={isRequesting}>
+                            {isRequesting ? 'Requesting...' : 'Enable Compass'}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
             <div
                 id={styles.needle}
                 style={{

@@ -1,9 +1,14 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { Loader2, Square } from 'lucide-react';
 import usePlaceStore from '@/store/placeStore';
 import useSettingsStore from '@/store/settingsStore';
 import useGeolocation from '@/hooks/useGeolocation';
+import { Button } from '@/components/ui/button';
+import { Command, CommandEmpty, CommandItem, CommandList } from '@/components/ui/command';
+import { Input } from '@/components/ui/input';
+import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
 
 export default function PlaceSearch() {
     const [searchQuery, setSearchQuery] = useState('');
@@ -12,12 +17,17 @@ export default function PlaceSearch() {
     const [showResults, setShowResults] = useState(false);
     const searchTimeoutRef = useRef(null);
     const searchInputRef = useRef(null);
+    const locationRef = useRef(null);
 
     const { destination, setDestination, clearDestination, currentLocation } = usePlaceStore();
     const { searchRadius } = useSettingsStore();
     const [isTracking, setIsTracking] = useState(false);
     const [isSearchMode, setIsSearchMode] = useState(true); // Track location for search filtering
     const { error: geoError } = useGeolocation(isTracking || isSearchMode);
+
+    useEffect(() => {
+        locationRef.current = currentLocation;
+    }, [currentLocation]);
 
     // Debounced search - only triggered by query change, not location updates
     useEffect(() => {
@@ -50,7 +60,7 @@ export default function PlaceSearch() {
                 });
                 
                 // Capture current location to avoid using stale value
-                const searchLocation = currentLocation;
+                const searchLocation = locationRef.current;
                 if (searchLocation) {
                     params.append('lat', searchLocation.latitude.toString());
                     params.append('lng', searchLocation.longitude.toString());
@@ -74,7 +84,7 @@ export default function PlaceSearch() {
                 setIsSearching(false);
             }
         }, 600); // Increased debounce to 600ms
-    }, [searchQuery, searchRadius]); // Removed currentLocation from dependencies!
+    }, [searchQuery, searchRadius]);
 
     const handleSelectPlace = (place) => {
         console.log('[PlaceSearch] Place selected:', place.name);
@@ -110,67 +120,91 @@ export default function PlaceSearch() {
     const showSearchInput = !destination;
     const showStartButton = destination && !isTracking;
     const showStopButton = destination && isTracking;
+    const shouldShowPopover = showSearchInput && showResults && searchQuery.trim().length >= 3;
 
     return (
-        <div className="bottom-bar">
+        <div className="fixed right-0 bottom-0 left-0 z-[100] flex flex-col items-center gap-3 p-4">
             {showSearchInput && (
-                <form
-                    id="search-place"
-                    onSubmit={(e) => {
-                        e.preventDefault();
-                        if (results.length > 0) {
-                            handleSelectPlace(results[0]);
-                        }
-                    }}
-                >
-                    <input
-                        ref={searchInputRef}
-                        type="text"
-                        id="search-input"
-                        placeholder="Where shall we go?"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        onFocus={() => setShowResults(results.length > 0)}
-                        onBlur={() => {
-                            // Delay hiding results to allow click on result
-                            setTimeout(() => setShowResults(false), 200);
+                <Popover open={shouldShowPopover} onOpenChange={setShowResults}>
+                    <form
+                        className="w-full max-w-md"
+                        onSubmit={(e) => {
+                            e.preventDefault();
+                            if (results.length > 0) {
+                                handleSelectPlace(results[0]);
+                            }
                         }}
-                    />
-                    {showResults && results.length > 0 && (
-                        <div className="search-results">
-                            {results.map((place) => (
-                                <div
-                                    key={place.id}
-                                    className="search-result-item"
-                                    onClick={() => handleSelectPlace(place)}
-                                    onMouseDown={(e) => e.preventDefault()} // Prevent onBlur
-                                >
-                                    <div className="result-name">{place.name}</div>
-                                    {place.place_name !== place.name && (
-                                        <div className="result-place">{place.place_name}</div>
-                                    )}
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                    {isSearching && <div className="search-loading">Searching...</div>}
-                </form>
+                    >
+                        <PopoverAnchor asChild>
+                            <Input
+                                ref={searchInputRef}
+                                type="text"
+                                placeholder="Where shall we go?"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                onFocus={() => setShowResults(true)}
+                                className="bg-background/85 backdrop-blur-sm"
+                            />
+                        </PopoverAnchor>
+                    </form>
+                    <PopoverContent
+                        align="center"
+                        side="top"
+                        sideOffset={8}
+                        className="z-[1050] w-[var(--radix-popover-trigger-width)] p-0"
+                    >
+                        <Command shouldFilter={false}>
+                            <CommandList>
+                                {isSearching && (
+                                    <div className="flex items-center justify-center gap-2 py-4 text-sm text-muted-foreground">
+                                        <Loader2 className="size-4 animate-spin" />
+                                        Searching...
+                                    </div>
+                                )}
+                                {!isSearching && (
+                                    <>
+                                        <CommandEmpty>No places found nearby.</CommandEmpty>
+                                        {results.map((place) => (
+                                            <CommandItem
+                                                key={place.id}
+                                                value={place.name}
+                                                onSelect={() => handleSelectPlace(place)}
+                                                className="h-auto cursor-pointer py-2"
+                                            >
+                                                <div className="flex w-full flex-col">
+                                                    <span className="font-medium">{place.name}</span>
+                                                    {place.place_name !== place.name && (
+                                                        <span className="text-xs text-muted-foreground">
+                                                            {place.place_name}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </CommandItem>
+                                        ))}
+                                    </>
+                                )}
+                            </CommandList>
+                        </Command>
+                    </PopoverContent>
+                </Popover>
             )}
 
             {showStartButton && (
-                <div id="startWayButton" onClick={handleStartWay}>
-                    Let's go
-                </div>
+                <Button onClick={handleStartWay} size="lg">
+                    Start route
+                </Button>
             )}
 
             {showStopButton && (
-                <div id="stopWayButton" onClick={handleStopWay}>
-                    X
-                </div>
+                <Button onClick={handleStopWay} size="icon-lg" variant="destructive" aria-label="Stop navigation">
+                    <Square className="size-4 fill-current" />
+                </Button>
             )}
 
             {geoError && (
-                <div className="error-message">{geoError}</div>
+                <p className="rounded-md bg-destructive/10 px-3 py-2 text-center text-sm text-destructive">
+                    {geoError}
+                </p>
             )}
         </div>
     );
