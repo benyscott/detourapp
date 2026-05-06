@@ -18,9 +18,22 @@ const playfairDisplay = Playfair_Display({
 
 export const metadata = {
   manifest: "/manifest.json",
-  themeColor: "#000000",
   title: "Detour: navigation meets zen",
   description: "An app that displays a compass pointing to different POIs with estimated time to walk or cycle",
+  appleWebApp: {
+    capable: true,
+    title: "Detour",
+    // Lets the page paint edge-to-edge under the status bar so it matches a white UI (use env(safe-area-inset-*)).
+    statusBarStyle: "black-translucent",
+  },
+};
+
+/** iOS Home Screen PWA + Safari: tints the status bar region to match the app background. */
+export const viewport = {
+  themeColor: "#ffffff",
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }) {

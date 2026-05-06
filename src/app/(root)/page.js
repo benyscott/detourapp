@@ -24,7 +24,7 @@ export default function CompassPage() {
     useNavigation();
 
     return (
-        <div style={{ height: '100vh', position: 'relative' }}>
+        <div style={{ minHeight: '100dvh', position: 'relative' }}>
             <Drawer>
                 <DrawerTrigger asChild>
                     <Button
@@ -32,7 +32,7 @@ export default function CompassPage() {
                         size="icon"
                         variant="secondary"
                         aria-label="Open menu"
-                        className="fixed top-4 right-4 z-[1000] rounded-full bg-black/50 text-white backdrop-blur-sm hover:bg-black/70"
+                        className="fixed right-4 top-[calc(1rem+env(safe-area-inset-top,0px))] z-[1000] rounded-full bg-black/50 text-white backdrop-blur-sm hover:bg-black/70"
                     >
                         <Menu />
                     </Button>
@@ -66,7 +66,7 @@ export default function CompassPage() {
             {/* Recommendations */}
             <Recommendations />
 
-            {/* Bottom bar */}
+            {/* Bottom bar: search or destination panel */}
             <PlaceSearch />
         </div>
     );

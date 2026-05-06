@@ -1,6 +1,5 @@
 'use client';
 
-import React from 'react';
 import usePlaceStore from '@/store/placeStore';
 
 export default function DestinationInfo() {
@@ -11,14 +10,7 @@ export default function DestinationInfo() {
     }
 
     return (
-        <h2
-            id="destinationName"
-            style={{
-                display: 'block',
-                opacity: destination ? 1 : 0,
-                transition: 'opacity 1s ease-in-out',
-            }}
-        >
+        <h2 className="m-0 block max-w-full truncate text-center text-2xl font-semibold text-foreground transition-opacity duration-1000 ease-in-out">
             {destination.name}
         </h2>
     );

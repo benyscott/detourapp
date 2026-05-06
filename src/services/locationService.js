@@ -110,6 +110,7 @@ export class PlaceDetails extends Place {
     phone = null,
     website = null,
     rating = null,
+    userRatingsTotal = null,
     priceLevel = null,
     openingHours = null,
     photos = [],
@@ -131,6 +132,7 @@ export class PlaceDetails extends Place {
     this.phone = phone;
     this.website = website;
     this.rating = rating;
+    this.userRatingsTotal = userRatingsTotal;
     this.priceLevel = priceLevel;
     this.openingHours = openingHours;
     this.photos = photos;
@@ -143,6 +145,7 @@ export class PlaceDetails extends Place {
       phone: this.phone,
       website: this.website,
       rating: this.rating,
+      userRatingsTotal: this.userRatingsTotal,
       priceLevel: this.priceLevel,
       openingHours: this.openingHours,
       photos: this.photos,

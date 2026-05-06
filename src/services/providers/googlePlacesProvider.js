@@ -145,7 +145,7 @@ export class GooglePlacesProvider extends LocationProvider {
     const url = new URL('https://maps.googleapis.com/maps/api/place/details/json');
     url.searchParams.append('place_id', placeId);
     url.searchParams.append('key', this.apiKey);
-    url.searchParams.append('fields', 'name,formatted_address,geometry,types,rating,price_level,opening_hours,formatted_phone_number,website,photos,reviews');
+    url.searchParams.append('fields', 'name,formatted_address,geometry,types,rating,user_ratings_total,price_level,opening_hours,formatted_phone_number,website,photos');
 
     if (sessionToken) {
       url.searchParams.append('sessiontoken', sessionToken);
@@ -184,6 +184,7 @@ export class GooglePlacesProvider extends LocationProvider {
                 phone: result.formatted_phone_number,
                 website: result.website,
                 rating: result.rating,
+                userRatingsTotal: result.user_ratings_total ?? null,
                 priceLevel: result.price_level,
                 openingHours: result.opening_hours,
                 photos: result.photos?.map(photo => ({

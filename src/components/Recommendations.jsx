@@ -24,6 +24,9 @@ export default function Recommendations() {
     const { currentLocation, setDestination, destination } = usePlaceStore();
     const { searchRadius } = useSettingsStore();
 
+    /** Set to false to restore category quick-pick (BAN-115). */
+    const BAN115_HIDE_RECOMMENDATIONS_UI = true;
+
     // Hide recommendations when destination is set
     if (destination) {
         return null;
@@ -66,6 +69,7 @@ export default function Recommendations() {
     const handleSelectPlace = (place) => {
         console.log('[Recommendations] Place selected:', place.name);
         setDestination({
+            id: place.id,
             latitude: place.latitude,
             longitude: place.longitude,
             name: place.name,
@@ -80,6 +84,10 @@ export default function Recommendations() {
     };
 
     if (!currentLocation) {
+        return null;
+    }
+
+    if (BAN115_HIDE_RECOMMENDATIONS_UI) {
         return null;
     }
 
