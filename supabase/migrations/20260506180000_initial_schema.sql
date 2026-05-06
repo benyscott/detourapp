@@ -3,13 +3,16 @@
 CREATE EXTENSION IF NOT EXISTS postgis WITH SCHEMA extensions;
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA extensions;
 
+-- PostGIS types live in `extensions`; pooled migration sessions may not include it on search_path.
+SET search_path = public, extensions;
+
 CREATE TABLE public.places (
   id uuid PRIMARY KEY DEFAULT extensions.uuid_generate_v4(),
   name text NOT NULL,
   category text NOT NULL,
   latitude double precision NOT NULL,
   longitude double precision NOT NULL,
-  location geography(Point, 4326),
+  location extensions.geography(Point, 4326),
   description text,
   address text,
   created_at timestamp DEFAULT now()
