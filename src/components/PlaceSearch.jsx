@@ -110,6 +110,9 @@ export default function PlaceSearch() {
             latitude: place.latitude,
             longitude: place.longitude,
             name: place.name,
+            provider: place.provider,
+            category: place.category,
+            address: place.place_name ?? null,
         });
         setSearchQuery('');
         setResults([]);

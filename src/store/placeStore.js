@@ -3,7 +3,7 @@ import { create } from 'zustand';
 const usePlaceStore = create((set) => ({
     // State
     currentLocation: null, // { latitude, longitude }
-    destination: null, // { id, latitude, longitude, name }
+    destination: null, // { id, latitude, longitude, name, provider, category, address }
     distance: null, // string (formatted distance)
     angle: null, // number (bearing in degrees)
 
