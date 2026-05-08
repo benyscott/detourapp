@@ -5,7 +5,7 @@ import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import usePlaceStore from '@/store/placeStore';
 import useMapViewStore from '@/store/mapViewStore';
-import { mapboxZenStyle } from '@/lib/mapboxZenStyle';
+import { resolveZenStyle } from '@/lib/mapboxZenStyle';
 import { debugMap } from '@/lib/debugMap';
 
 const ROUTE_LAYER_PREFIX = 'route-layer-';
@@ -61,6 +61,7 @@ const MapboxMap = forwardRef(function MapboxMap(
     const [opacity, setOpacity] = useState(0);
     const currentLocation = usePlaceStore((state) => state.currentLocation);
     const mode = useMapViewStore((state) => state.mode);
+    const deviceHeading = useMapViewStore((state) => state.deviceHeading);
 
     const setOpacityValue = useCallback((value) => {
         const clamped = clamp(value, 0, 1);
@@ -96,7 +97,7 @@ const MapboxMap = forwardRef(function MapboxMap(
     }, [setOpacityValue]);
 
     const resolvedStyle = useMemo(() => {
-        return process.env.NEXT_PUBLIC_MAPBOX_STYLE_URL || mapboxZenStyle;
+        return resolveZenStyle();
     }, []);
 
     // Single Mapbox instance for the page lifetime. Recreating on every GPS tick resets zoom and breaks pinch.
@@ -139,6 +140,7 @@ const MapboxMap = forwardRef(function MapboxMap(
         });
 
         const mapInstance = mapRef.current;
+        const setCurrentZoom = useMapViewStore.getState().setCurrentZoom;
 
         const handleLoad = () => {
             debugMap('map load', {
@@ -150,12 +152,17 @@ const MapboxMap = forwardRef(function MapboxMap(
         const handleError = (event) => {
             console.error('[Detour:Map] Mapbox error', event?.error ?? event);
         };
+        const handleZoom = () => {
+            setCurrentZoom(mapInstance.getZoom());
+        };
 
         mapInstance.once('load', handleLoad);
         mapInstance.on('error', handleError);
+        mapInstance.on('zoom', handleZoom);
 
         return () => {
             mapInstance.off('error', handleError);
+            mapInstance.off('zoom', handleZoom);
             if (destinationMarkerRef.current) {
                 destinationMarkerRef.current.remove();
                 destinationMarkerRef.current = null;
@@ -183,10 +190,23 @@ const MapboxMap = forwardRef(function MapboxMap(
             return;
         }
 
+        if (mode !== 'zen') {
+            return;
+        }
+
         map.jumpTo({
             center: [currentLocation.longitude, currentLocation.latitude],
         });
-    }, [currentLocation]);
+    }, [currentLocation, mode]);
+
+    useEffect(() => {
+        const map = mapRef.current;
+        if (!map || deviceHeading == null) {
+            return;
+        }
+
+        map.setBearing(deviceHeading);
+    }, [deviceHeading]);
 
     useEffect(() => {
         const map = mapRef.current;
@@ -267,8 +287,8 @@ const MapboxMap = forwardRef(function MapboxMap(
         }
 
         const element = createDotElement({
-            size: 8,
-            color: '#16A8FF',
+            size: 12,
+            color: '#555555',
             shadow: '0 0 0 2px rgba(255,255,255,0.8)',
         });
 
@@ -366,6 +386,13 @@ const MapboxMap = forwardRef(function MapboxMap(
             return mapRef.current?.getZoom() ?? 22;
         },
         getMap: () => mapRef.current,
+        panBy: (offsetXY) => {
+            if (!mapRef.current) {
+                return;
+            }
+
+            mapRef.current.panBy(offsetXY, { duration: 0, animate: false });
+        },
         animateToMode: (nextMode) => {
             const map = mapRef.current;
             if (!map) {

@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import usePlaceStore from '@/store/placeStore';
+import useMapViewStore from '@/store/mapViewStore';
+import { debugMap } from '@/lib/debugMap';
 
 const isIOS = typeof window !== 'undefined' &&
     navigator.userAgent.match(/(iPod|iPhone|iPad)/) &&
@@ -11,20 +13,18 @@ const isIOS = typeof window !== 'undefined' &&
  */
 export default function useCompass() {
     const [needleRotation, setNeedleRotation] = useState(0);
-    const [isActive, setIsActive] = useState(false);
     const [needsPermission, setNeedsPermission] = useState(false);
     const orientationAcceptedRef = useRef(false);
     const orientationHandlerRef = useRef(null);
     const currentHandlerRef = useRef(null);
     const { angle, destination } = usePlaceStore();
+    const setDeviceHeading = useMapViewStore((state) => state.setDeviceHeading);
+    const isActive = Boolean(destination && angle);
 
     useEffect(() => {
         if (!destination || !angle) {
-            setIsActive(false);
             return;
         }
-
-        setIsActive(true);
 
         const handler = (event) => {
             const currentDestination = destination;
@@ -47,6 +47,8 @@ export default function useCompass() {
             }
 
             const rotation = currentAngle - deviceHeading;
+            setDeviceHeading(deviceHeading);
+            // debugMap('compass heading', { deviceHeading, angle: currentAngle, rotation });
             setNeedleRotation(rotation);
         };
 
@@ -104,7 +106,7 @@ export default function useCompass() {
                 }
             }
         };
-    }, [destination, angle]);
+    }, [destination, angle, setDeviceHeading]);
 
     const requestPermission = async () => {
         if (orientationAcceptedRef.current) return true;

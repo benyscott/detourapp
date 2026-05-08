@@ -17,6 +17,11 @@ const getTouchDistance = (touches) => {
     return Math.sqrt(dx * dx + dy * dy);
 };
 
+const getTouchMidpoint = (touches) => ({
+    x: (touches[0].clientX + touches[1].clientX) / 2,
+    y: (touches[0].clientY + touches[1].clientY) / 2,
+});
+
 const calculateOpacityFromZoom = (zoom) => {
     if (zoom >= MAX_ZOOM) {
         return 0;
@@ -67,6 +72,7 @@ export default function usePinchZoom(mapRef) {
         let pendingZoom = MAX_ZOOM;
         let currentZoom = MAX_ZOOM;
         let moveLogCounter = 0;
+        let previousMidpoint = null;
 
         const applyFrame = () => {
             frameRequested = false;
@@ -102,6 +108,7 @@ export default function usePinchZoom(mapRef) {
 
             isPinching = true;
             initialDistance = getTouchDistance(event.touches);
+            previousMidpoint = getTouchMidpoint(event.touches);
             initialZoom = mapApi.getZoom();
             currentZoom = initialZoom;
             debugMap('pinch start', {
@@ -132,6 +139,15 @@ export default function usePinchZoom(mapRef) {
             const zoomDelta = Math.log2(scale) * SENSITIVITY;
             const unclampedZoom = initialZoom + zoomDelta;
             pendingZoom = clamp(unclampedZoom, MIN_ZOOM, MAX_ZOOM);
+
+            const nextMidpoint = getTouchMidpoint(event.touches);
+            const dx = nextMidpoint.x - previousMidpoint.x;
+            const dy = nextMidpoint.y - previousMidpoint.y;
+            previousMidpoint = nextMidpoint;
+            if (dx !== 0 || dy !== 0) {
+                mapApi.panBy([-dx, -dy]);
+            }
+
             moveLogCounter += 1;
             if (moveLogCounter % 6 === 0) {
                 debugMap('pinch move', {
@@ -155,6 +171,7 @@ export default function usePinchZoom(mapRef) {
 
             isPinching = false;
             moveLogCounter = 0;
+            previousMidpoint = null;
 
             const mapApi = mapRef.current;
             if (!mapApi) {

@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import styles from './Compass.module.css';
 import useCompass from '@/hooks/useCompass';
+import useMapViewStore from '@/store/mapViewStore';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -16,6 +17,12 @@ import {
 export default function Compass() {
     const { needleRotation, isActive, requestPermission, needsPermission } = useCompass();
     const [isRequesting, setIsRequesting] = useState(false);
+    const currentZoom = useMapViewStore((state) => state.currentZoom);
+
+    const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+    const zoomProgress = clamp((currentZoom - 17) / (22 - 17), 0, 1);
+    const compassScale = 0.16 + zoomProgress * (1 - 0.16);
+    const showNeedle = isActive;
 
     const handleRequestPermission = async () => {
         console.log('[Compass] User clicked permission button');
@@ -28,7 +35,13 @@ export default function Compass() {
     };
 
     return (
-        <div id={styles.compass}>
+        <div
+            id={styles.compass}
+            style={{
+                transform: `translate(-50%, -50%) scale(${compassScale})`,
+                transition: 'transform 200ms linear',
+            }}
+        >
             <AlertDialog open={needsPermission}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
@@ -47,7 +60,7 @@ export default function Compass() {
             <div
                 id={styles.needle}
                 style={{
-                    display: isActive ? 'block' : 'none',
+                    display: showNeedle ? 'block' : 'none',
                     transform: `rotate(${needleRotation.toFixed(2)}deg)`,
                 }}
             >
