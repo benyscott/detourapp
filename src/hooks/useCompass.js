@@ -18,23 +18,31 @@ export default function useCompass() {
     const orientationHandlerRef = useRef(null);
     const currentHandlerRef = useRef(null);
     const { angle, destination } = usePlaceStore();
+    const angleRef = useRef(angle);
+    const destinationRef = useRef(destination);
     const setDeviceHeading = useMapViewStore((state) => state.setDeviceHeading);
     const isActive = Boolean(destination && angle);
 
     useEffect(() => {
-        if (!destination || !angle) {
-            return;
-        }
+        angleRef.current = angle;
+    }, [angle]);
 
+    useEffect(() => {
+        destinationRef.current = destination;
+    }, [destination]);
+
+    useEffect(() => {
         const handler = (event) => {
-            const currentDestination = destination;
-            const currentAngle = angle;
+            const currentDestination = destinationRef.current;
+            const currentAngle = angleRef.current;
 
-            if (!currentDestination) return;
+            if (!currentDestination || currentAngle == null) return;
 
-            const deviceHeading = event.webkitCompassHeading !== undefined
-                ? event.webkitCompassHeading
-                : (event.alpha !== undefined ? Math.abs(event.alpha - 360) : null);
+            const rawCompassHeading = event.webkitCompassHeading;
+            const hasValidWebkitCompassHeading = typeof rawCompassHeading === 'number' && rawCompassHeading >= 0;
+            const deviceHeading = hasValidWebkitCompassHeading
+                ? rawCompassHeading
+                : (typeof event.alpha === 'number' ? Math.abs(event.alpha - 360) : null);
 
             if (deviceHeading === null || deviceHeading === undefined) {
                 console.warn('[Compass] No device heading available', {
@@ -53,25 +61,8 @@ export default function useCompass() {
         };
 
         orientationHandlerRef.current = handler;
-        currentHandlerRef.current = handler;
 
         const checkPermissionStatus = () => {
-            if (orientationAcceptedRef.current) {
-                const oldHandler = currentHandlerRef.current;
-                if (oldHandler) {
-                    window.removeEventListener('deviceorientation', oldHandler, true);
-                    window.removeEventListener('deviceorientationabsolute', oldHandler, true);
-                }
-                if (isIOS) {
-                    window.addEventListener('deviceorientation', handler, true);
-                } else {
-                    window.addEventListener('deviceorientationabsolute', handler, true);
-                    window.addEventListener('deviceorientation', handler, true);
-                }
-                currentHandlerRef.current = handler;
-                return;
-            }
-
             if (isIOS) {
                 if (typeof DeviceOrientationEvent !== 'undefined' &&
                     typeof DeviceOrientationEvent.requestPermission === 'function') {
@@ -106,7 +97,7 @@ export default function useCompass() {
                 }
             }
         };
-    }, [destination, angle, setDeviceHeading]);
+    }, [setDeviceHeading]);
 
     const requestPermission = async () => {
         if (orientationAcceptedRef.current) return true;
@@ -120,12 +111,13 @@ export default function useCompass() {
                         if (orientationHandlerRef.current) {
                             window.addEventListener('deviceorientation', orientationHandlerRef.current, true);
                             currentHandlerRef.current = orientationHandlerRef.current;
+                            orientationAcceptedRef.current = true;
+                            setNeedsPermission(false);
+                            return true;
                         } else {
                             console.warn('[Compass] Orientation handler not available yet');
+                            return false;
                         }
-                        orientationAcceptedRef.current = true;
-                        setNeedsPermission(false);
-                        return true;
                     }
                     console.warn('[Compass] Orientation permission denied:', response);
                     return false;

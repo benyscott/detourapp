@@ -215,10 +215,57 @@ const MapboxMap = forwardRef(function MapboxMap(
         }
 
         const cleanup = runWhenStyleReady(map, () => {
+            routes.forEach((route, index) => {
+                if (!route?.geometry) {
+                    return;
+                }
+
+                const sourceId = `${ROUTE_SOURCE_PREFIX}${index}`;
+                const layerId = `${ROUTE_LAYER_PREFIX}${index}`;
+                const isRecommended = index === 0;
+                const routeFeature = {
+                    type: 'Feature',
+                    geometry: route.geometry,
+                    properties: {},
+                };
+
+                const existingSource = map.getSource(sourceId);
+                if (existingSource && typeof existingSource.setData === 'function') {
+                    existingSource.setData(routeFeature);
+                } else {
+                    map.addSource(sourceId, {
+                        type: 'geojson',
+                        data: routeFeature,
+                    });
+                }
+
+                if (!map.getLayer(layerId)) {
+                    map.addLayer({
+                        id: layerId,
+                        type: 'line',
+                        source: sourceId,
+                        maxzoom: 20,
+                        layout: {
+                            'line-cap': 'round',
+                            'line-join': 'round',
+                        },
+                        paint: {
+                            'line-color': '#333333',
+                            'line-width': isRecommended ? 2 : 1,
+                            'line-opacity': isRecommended ? 0.8 : 0.25,
+                        },
+                    });
+                }
+            });
+
             const existingLayerIds = map.getStyle()?.layers?.map((layer) => layer.id) || [];
             existingLayerIds
                 .filter((layerId) => layerId.startsWith(ROUTE_LAYER_PREFIX))
                 .forEach((layerId) => {
+                    const layerIndex = Number(layerId.replace(ROUTE_LAYER_PREFIX, ''));
+                    if (Number.isNaN(layerIndex) || layerIndex < routes.length) {
+                        return;
+                    }
                     if (map.getLayer(layerId)) {
                         map.removeLayer(layerId);
                     }
@@ -228,45 +275,14 @@ const MapboxMap = forwardRef(function MapboxMap(
             existingSourceIds
                 .filter((sourceId) => sourceId.startsWith(ROUTE_SOURCE_PREFIX))
                 .forEach((sourceId) => {
+                    const sourceIndex = Number(sourceId.replace(ROUTE_SOURCE_PREFIX, ''));
+                    if (Number.isNaN(sourceIndex) || sourceIndex < routes.length) {
+                        return;
+                    }
                     if (map.getSource(sourceId)) {
                         map.removeSource(sourceId);
                     }
                 });
-
-            routes.forEach((route, index) => {
-                if (!route?.geometry) {
-                    return;
-                }
-
-                const sourceId = `${ROUTE_SOURCE_PREFIX}${index}`;
-                const layerId = `${ROUTE_LAYER_PREFIX}${index}`;
-                const isRecommended = index === 0;
-
-                map.addSource(sourceId, {
-                    type: 'geojson',
-                    data: {
-                        type: 'Feature',
-                        geometry: route.geometry,
-                        properties: {},
-                    },
-                });
-
-                map.addLayer({
-                    id: layerId,
-                    type: 'line',
-                    source: sourceId,
-                    maxzoom: 20,
-                    layout: {
-                        'line-cap': 'round',
-                        'line-join': 'round',
-                    },
-                    paint: {
-                        'line-color': '#333333',
-                        'line-width': isRecommended ? 2 : 1,
-                        'line-opacity': isRecommended ? 0.8 : 0.25,
-                    },
-                });
-            });
         });
 
         return cleanup;
