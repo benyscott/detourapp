@@ -7,6 +7,8 @@ const usePlaceStore = create((set) => ({
     recommendations: [], // [{ id, latitude, longitude, ... }]
     distance: null, // string (formatted distance)
     angle: null, // number (bearing in degrees)
+    /** Synced from useGeolocation when tracking so overlays can show errors without a second watch */
+    geolocationError: null,
 
     // Actions
     setCurrentLocation: (location) => {
@@ -40,6 +42,8 @@ const usePlaceStore = create((set) => ({
     setDistance: (distance) => set({ distance }),
 
     setAngle: (angle) => set({ angle }),
+
+    setGeolocationError: (geolocationError) => set({ geolocationError }),
 }));
 
 export default usePlaceStore;

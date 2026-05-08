@@ -4,17 +4,9 @@ import { useRef } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { Menu } from 'lucide-react';
-import Compass from "@/components/Compass";
-import DistanceInfo from "@/components/DistanceInfo";
-import DestinationInfo from "@/components/DestinationInfo";
-import PlaceSearch from "@/components/PlaceSearch";
-import Recommendations from "@/components/Recommendations";
+import Compass from '@/components/Compass';
 import MapToggleButton from '@/components/MapToggleButton';
-import useNavigation from "@/hooks/useNavigation";
-import usePinchZoom from '@/hooks/usePinchZoom';
-import useWalkingRoutes from '@/hooks/useWalkingRoutes';
-import usePlaceStore from '@/store/placeStore';
-import { Button } from "@/components/ui/button";
+import { Button } from '@/components/ui/button';
 import {
     Drawer,
     DrawerClose,
@@ -23,12 +15,17 @@ import {
     DrawerHeader,
     DrawerTitle,
     DrawerTrigger,
-} from "@/components/ui/drawer";
+} from '@/components/ui/drawer';
+import useGeolocation from '@/hooks/useGeolocation';
+import useNavigation from '@/hooks/useNavigation';
+import usePinchZoom from '@/hooks/usePinchZoom';
+import useWalkingRoutes from '@/hooks/useWalkingRoutes';
+import usePlaceStore from '@/store/placeStore';
 
 const MapboxMap = dynamic(() => import('@/components/MapboxMap'), { ssr: false });
 
-export default function CompassPage() {
-    // Automatically calculate distance and angle when location or destination changes
+export default function MapLayout({ children }) {
+    useGeolocation(true);
     useNavigation();
     const mapRef = useRef(null);
     const destination = usePlaceStore((state) => state.destination);
@@ -61,9 +58,7 @@ export default function CompassPage() {
                 <DrawerContent>
                     <DrawerHeader>
                         <DrawerTitle>Menu</DrawerTitle>
-                        <DrawerDescription>
-                            Access app settings and controls.
-                        </DrawerDescription>
+                        <DrawerDescription>Access app settings and controls.</DrawerDescription>
                     </DrawerHeader>
                     <div className="space-y-3 px-4 pb-6">
                         <DrawerClose asChild>
@@ -80,20 +75,8 @@ export default function CompassPage() {
                 </DrawerContent>
             </Drawer>
 
-            {/* Top bar */}
-            <div className="top-bar">
-                <DestinationInfo />
-                <DistanceInfo />
-            </div>
-
-            {/* Center: Compass */}
             <Compass />
-
-            {/* Recommendations */}
-            <Recommendations />
-
-            {/* Bottom bar: search or destination panel */}
-            <PlaceSearch />
+            {children}
         </div>
     );
 }

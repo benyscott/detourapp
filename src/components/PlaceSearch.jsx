@@ -4,7 +4,6 @@ import { useState, useEffect, useRef } from 'react';
 import { Loader2 } from 'lucide-react';
 import usePlaceStore from '@/store/placeStore';
 import useSettingsStore from '@/store/settingsStore';
-import useGeolocation from '@/hooks/useGeolocation';
 import { Command, CommandEmpty, CommandItem, CommandList } from '@/components/ui/command';
 import { Input } from '@/components/ui/input';
 import DestinationBottomPanel from '@/components/DestinationBottomPanel';
@@ -19,9 +18,8 @@ export default function PlaceSearch() {
     const locationRef = useRef(null);
     const hideResultsTimeoutRef = useRef(null);
 
-    const { destination, setDestination, currentLocation } = usePlaceStore();
+    const { destination, setDestination, currentLocation, geolocationError: geoError } = usePlaceStore();
     const { searchRadius } = useSettingsStore();
-    const { error: geoError } = useGeolocation(true);
 
     useEffect(() => {
         locationRef.current = currentLocation;

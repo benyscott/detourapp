@@ -22,7 +22,7 @@ export default function SettingsPage() {
     const radiusKm = (tempRadius / 1000).toFixed(1);
 
     return (
-        <div className="dark min-h-screen bg-background px-6 py-8 text-foreground sm:px-8">
+        <div className="min-h-screen bg-background px-6 py-8 text-foreground sm:px-8">
             <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
                 <Button asChild variant="ghost" className="w-fit">
                     <Link href="/">

@@ -16,7 +16,7 @@ export default async function ItineraryDetailPage({ params }) {
   }
 
   return (
-    <main className="dark fixed inset-0 overflow-y-auto bg-background px-6 py-8 text-foreground sm:px-8">
+    <main className="fixed inset-0 overflow-y-auto bg-background px-6 py-8 text-foreground sm:px-8">
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
         <Button asChild variant="ghost" className="w-fit">
           <Link href="/itineraries">

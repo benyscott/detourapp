@@ -153,7 +153,7 @@
 }
 
 /* Layout styles matching vanilla app */
-.top-bar {
+.navigation-bar {
   position: fixed;
   top: 0;
   left: 0;
