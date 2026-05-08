@@ -44,7 +44,12 @@ export default function CompassPage() {
                             Access app settings and controls.
                         </DrawerDescription>
                     </DrawerHeader>
-                    <div className="px-4 pb-6">
+                    <div className="space-y-3 px-4 pb-6">
+                        <DrawerClose asChild>
+                            <Button asChild variant="outline" className="w-full">
+                                <Link href="/itineraries">Itineraries</Link>
+                            </Button>
+                        </DrawerClose>
                         <DrawerClose asChild>
                             <Button asChild variant="outline" className="w-full">
                                 <Link href="/settings">Settings</Link>

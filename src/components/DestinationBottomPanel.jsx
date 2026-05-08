@@ -40,6 +40,8 @@ export default function DestinationBottomPanel() {
     const [details, setDetails] = useState(null);
     const [isLoadingDetails, setIsLoadingDetails] = useState(false);
     const [detailsError, setDetailsError] = useState(null);
+    const [isSaving, setIsSaving] = useState(false);
+    const [saveMessage, setSaveMessage] = useState(null);
 
     useEffect(() => {
         if (!destination?.id) {
@@ -116,6 +118,47 @@ export default function DestinationBottomPanel() {
         clearDestination();
     };
 
+    const handleSaveToFavourites = async () => {
+        if (!destination?.id || !destination?.provider) {
+            setSaveMessage('Missing place identifier for save');
+            return;
+        }
+
+        setIsSaving(true);
+        setSaveMessage(null);
+
+        try {
+            const response = await fetch('/api/places/save', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    provider: destination.provider,
+                    externalId: destination.id,
+                    place: {
+                        name: destination.name,
+                        latitude: destination.latitude,
+                        longitude: destination.longitude,
+                        category: destination.category ?? 'place',
+                        address: destination.address ?? null,
+                    },
+                }),
+            });
+
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(payload.error || 'Failed to save place');
+            }
+
+            setSaveMessage(payload.alreadyInList ? 'Already in Favourites' : 'Saved to Favourites');
+        } catch (error) {
+            setSaveMessage(error.message || 'Failed to save place');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
     return (
         <section
             className="bg-card/95 w-full max-w-md rounded-2xl border px-4 py-4 shadow-lg backdrop-blur-md"
@@ -156,7 +199,21 @@ export default function DestinationBottomPanel() {
                     {detailsError && !isLoadingDetails && (
                         <p className="text-destructive text-xs">{detailsError}</p>
                     )}
+                    {saveMessage && (
+                        <p className="text-muted-foreground text-xs">{saveMessage}</p>
+                    )}
                 </div>
+
+                <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    className="shrink-0"
+                    onClick={handleSaveToFavourites}
+                    disabled={isSaving}
+                >
+                    {isSaving ? 'Saving...' : 'Save'}
+                </Button>
 
                 <Button
                     type="button"
