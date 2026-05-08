@@ -4,6 +4,7 @@ const usePlaceStore = create((set) => ({
     // State
     currentLocation: null, // { latitude, longitude }
     destination: null, // { id, latitude, longitude, name, provider, category, address }
+    recommendations: [], // [{ id, latitude, longitude, ... }]
     distance: null, // string (formatted distance)
     angle: null, // number (bearing in degrees)
 
@@ -18,10 +19,19 @@ const usePlaceStore = create((set) => ({
         set({ destination });
     },
 
+    setRecommendations: (recommendations) => {
+        set({ recommendations });
+    },
+
+    clearRecommendations: () => {
+        set({ recommendations: [] });
+    },
+
     clearDestination: () => {
         console.log('[Store] Destination cleared');
         set({
             destination: null,
+            recommendations: [],
             distance: null,
             angle: null,
         });

@@ -1,5 +1,7 @@
 'use client';
 
+import { useRef } from 'react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { Menu } from 'lucide-react';
 import Compass from "@/components/Compass";
@@ -7,7 +9,11 @@ import DistanceInfo from "@/components/DistanceInfo";
 import DestinationInfo from "@/components/DestinationInfo";
 import PlaceSearch from "@/components/PlaceSearch";
 import Recommendations from "@/components/Recommendations";
+import MapToggleButton from '@/components/MapToggleButton';
 import useNavigation from "@/hooks/useNavigation";
+import usePinchZoom from '@/hooks/usePinchZoom';
+import useWalkingRoutes from '@/hooks/useWalkingRoutes';
+import usePlaceStore from '@/store/placeStore';
 import { Button } from "@/components/ui/button";
 import {
     Drawer,
@@ -19,12 +25,27 @@ import {
     DrawerTrigger,
 } from "@/components/ui/drawer";
 
+const MapboxMap = dynamic(() => import('@/components/MapboxMap'), { ssr: false });
+
 export default function CompassPage() {
     // Automatically calculate distance and angle when location or destination changes
     useNavigation();
+    const mapRef = useRef(null);
+    const destination = usePlaceStore((state) => state.destination);
+    const recommendations = usePlaceStore((state) => state.recommendations);
+    const { routes } = useWalkingRoutes();
+    usePinchZoom(mapRef);
 
     return (
         <div style={{ minHeight: '100dvh', position: 'relative' }}>
+            <MapboxMap
+                ref={mapRef}
+                routes={routes}
+                destination={destination}
+                recommendations={recommendations}
+            />
+            <MapToggleButton />
+
             <Drawer>
                 <DrawerTrigger asChild>
                     <Button
