@@ -432,7 +432,7 @@ const MapboxMap = forwardRef(function MapboxMap(
             style={{
                 position: 'absolute',
                 inset: 0,
-                zIndex: 1,
+                zIndex: 0,
                 opacity,
                 pointerEvents: 'none',
             }}

@@ -3,8 +3,6 @@
 import NavigationBar from '@/components/NavigationBar';
 import DestinationInfo from '@/components/DestinationInfo';
 import DistanceInfo from '@/components/DistanceInfo';
-import PlaceSearch from '@/components/PlaceSearch';
-import Recommendations from '@/components/Recommendations';
 
 export default function HomePage() {
     return (
@@ -13,8 +11,6 @@ export default function HomePage() {
                 <DestinationInfo />
                 <DistanceInfo />
             </NavigationBar>
-            <Recommendations />
-            <PlaceSearch />
         </>
     );
 }

@@ -13,13 +13,13 @@ export default function MapToggleButton() {
         <Button
             type="button"
             size="icon"
-            variant="secondary"
+            variant="ghost"
             aria-label={isZenMode ? 'Show map' : 'Hide map'}
-            className="fixed left-4 top-[calc(1rem+env(safe-area-inset-top,0px))] z-[1000] rounded-full bg-black/50 text-white backdrop-blur-sm hover:bg-black/70"
+            aria-pressed={!isZenMode}
+            className="rounded-full bg-transparent text-slate-900 hover:bg-black/5"
             onClick={toggleMode}
         >
             {isZenMode ? <Map /> : <X />}
         </Button>
     );
 }
-

@@ -66,11 +66,11 @@ export default function TourOverlay({ itinerary }) {
     const meters =
         currentLocation && currentStop?.place
             ? calculateDistance(
-                  currentLocation.latitude,
-                  currentLocation.longitude,
-                  currentStop.place.latitude,
-                  currentStop.place.longitude
-              )
+                currentLocation.latitude,
+                currentLocation.longitude,
+                currentStop.place.latitude,
+                currentStop.place.longitude
+            )
             : null;
 
     useEffect(() => {

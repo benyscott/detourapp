@@ -1,12 +1,13 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, X } from 'lucide-react';
 import usePlaceStore from '@/store/placeStore';
 import useSettingsStore from '@/store/settingsStore';
+import useMapViewStore from '@/store/mapViewStore';
+import { Button } from '@/components/ui/button';
 import { Command, CommandEmpty, CommandItem, CommandList } from '@/components/ui/command';
 import { Input } from '@/components/ui/input';
-import DestinationBottomPanel from '@/components/DestinationBottomPanel';
 
 export default function PlaceSearch() {
     const [searchQuery, setSearchQuery] = useState('');
@@ -18,18 +19,29 @@ export default function PlaceSearch() {
     const locationRef = useRef(null);
     const hideResultsTimeoutRef = useRef(null);
 
-    const { destination, setDestination, currentLocation, geolocationError: geoError } = usePlaceStore();
+    const { setDestination, currentLocation, geolocationError: geoError } = usePlaceStore();
     const { searchRadius } = useSettingsStore();
+    const isSearchOpen = useMapViewStore((s) => s.isSearchOpen);
+    const setSearchOpen = useMapViewStore((s) => s.setSearchOpen);
 
     useEffect(() => {
         locationRef.current = currentLocation;
     }, [currentLocation]);
 
     useEffect(() => {
-        if (!destination && searchInputRef.current) {
+        if (isSearchOpen && searchInputRef.current) {
             searchInputRef.current.focus();
         }
-    }, [destination]);
+    }, [isSearchOpen]);
+
+    useEffect(() => {
+        if (!isSearchOpen) {
+            setSearchQuery('');
+            setResults([]);
+            setShowResults(false);
+            setIsSearching(false);
+        }
+    }, [isSearchOpen]);
 
     useEffect(() => {
         return () => {
@@ -41,6 +53,10 @@ export default function PlaceSearch() {
 
     // Debounced search - only triggered by query change, not location updates
     useEffect(() => {
+        if (!isSearchOpen) {
+            return;
+        }
+
         if (searchTimeoutRef.current) {
             clearTimeout(searchTimeoutRef.current);
         }
@@ -52,7 +68,6 @@ export default function PlaceSearch() {
             return;
         }
 
-        // Don't search for very short queries — keep panel closed so focus doesn't reserve popper/layout space
         if (searchQuery.trim().length < 3) {
             console.log('[PlaceSearch] Query too short, waiting for more characters...');
             setShowResults(false);
@@ -63,20 +78,18 @@ export default function PlaceSearch() {
         searchTimeoutRef.current = setTimeout(async () => {
             try {
                 console.log('[PlaceSearch] Searching for:', searchQuery, 'with radius:', searchRadius);
-                
-                // Build query params - use current location at time of search
-                const params = new URLSearchParams({ 
+
+                const params = new URLSearchParams({
                     q: searchQuery,
                     radius: searchRadius.toString(),
                 });
-                
-                // Capture current location to avoid using stale value
+
                 const searchLocation = locationRef.current;
                 if (searchLocation) {
                     params.append('lat', searchLocation.latitude.toString());
                     params.append('lng', searchLocation.longitude.toString());
                 }
-                
+
                 const response = await fetch(`/api/places?${params.toString()}`);
                 if (!response.ok) {
                     const errorData = await response.json().catch(() => ({}));
@@ -84,9 +97,15 @@ export default function PlaceSearch() {
                 }
 
                 const data = await response.json();
-                const results = data.results || [];
-                console.log('[PlaceSearch] Found', results.length, 'results within', searchRadius / 1000, 'km');
-                setResults(results);
+                const nextResults = data.results || [];
+                console.log(
+                    '[PlaceSearch] Found',
+                    nextResults.length,
+                    'results within',
+                    searchRadius / 1000,
+                    'km'
+                );
+                setResults(nextResults);
                 setShowResults(true);
             } catch (error) {
                 console.error('[PlaceSearch] Search error:', error);
@@ -94,8 +113,8 @@ export default function PlaceSearch() {
             } finally {
                 setIsSearching(false);
             }
-        }, 600); // Increased debounce to 600ms
-    }, [searchQuery, searchRadius]);
+        }, 600);
+    }, [searchQuery, searchRadius, isSearchOpen]);
 
     const handleSelectPlace = (place) => {
         if (hideResultsTimeoutRef.current !== null) {
@@ -115,11 +134,10 @@ export default function PlaceSearch() {
         setSearchQuery('');
         setResults([]);
         setShowResults(false);
+        setSearchOpen(false);
     };
 
-    // Hide search input when destination is selected
-    const showSearchInput = !destination;
-    const shouldShowPopover = showSearchInput && showResults && searchQuery.trim().length >= 3;
+    const shouldShowPopover = isSearchOpen && showResults && searchQuery.trim().length >= 3;
 
     const handleSearchFocus = () => {
         if (hideResultsTimeoutRef.current !== null) {
@@ -138,11 +156,14 @@ export default function PlaceSearch() {
         }, 180);
     };
 
+    if (!isSearchOpen && !geoError) {
+        return null;
+    }
+
     return (
-        <div className="fixed right-0 bottom-0 left-0 z-[100] flex flex-col items-center gap-3 p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))]">
-            {destination && <DestinationBottomPanel />}
-            {showSearchInput && (
-                <div className="relative w-full max-w-md">
+        <div className="flex w-full flex-col gap-2">
+            {isSearchOpen && (
+                <div className="relative w-full">
                     <form
                         onSubmit={(e) => {
                             e.preventDefault();
@@ -151,16 +172,28 @@ export default function PlaceSearch() {
                             }
                         }}
                     >
-                        <Input
-                            ref={searchInputRef}
-                            type="text"
-                            placeholder="Where shall we go?"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            onFocus={handleSearchFocus}
-                            onBlur={handleSearchBlur}
-                            className="bg-background/85 backdrop-blur-sm"
-                        />
+                        <div className="flex items-center gap-2">
+                            <Input
+                                ref={searchInputRef}
+                                type="text"
+                                placeholder="Where shall we go?"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                onFocus={handleSearchFocus}
+                                onBlur={handleSearchBlur}
+                                className="bg-background/85 backdrop-blur-sm"
+                            />
+                            <Button
+                                type="button"
+                                variant="secondary"
+                                size="icon-sm"
+                                className="shrink-0 rounded-full"
+                                onClick={() => setSearchOpen(false)}
+                                aria-label="Close search"
+                            >
+                                <X className="size-4" />
+                            </Button>
+                        </div>
                     </form>
                     {shouldShowPopover && (
                         <div
