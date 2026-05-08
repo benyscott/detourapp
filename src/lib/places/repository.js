@@ -147,6 +147,64 @@ export const getOrCreateFavouritesList = async ({ userId = null }) => {
   return createdList.id;
 };
 
+export const findPlaceIdByProvider = async ({ provider, externalId }) => {
+  if (!externalId) {
+    return null;
+  }
+
+  const providerKey = resolveProviderKey(provider);
+  const supabase = createServiceRoleClient();
+
+  const { data, error } = await supabase
+    .from('places')
+    .select('id')
+    .contains('provider_ids', { [providerKey]: externalId })
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data?.id ?? null;
+};
+
+export const findListItem = async ({ listId, placeId }) => {
+  const supabase = createServiceRoleClient();
+
+  const { data, error } = await supabase
+    .from('place_list_items')
+    .select('id')
+    .eq('list_id', listId)
+    .eq('place_id', placeId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data?.id ?? null;
+};
+
+export const removePlaceFromList = async ({ listId, placeId }) => {
+  const supabase = createServiceRoleClient();
+
+  const { data, error } = await supabase
+    .from('place_list_items')
+    .delete()
+    .eq('list_id', listId)
+    .eq('place_id', placeId)
+    .select('id');
+
+  if (error) {
+    throw error;
+  }
+
+  return {
+    removed: Array.isArray(data) && data.length > 0,
+    listItemIds: (data ?? []).map((row) => row.id),
+  };
+};
+
 export const addPlaceToList = async ({ listId, placeId, note = null }) => {
   const supabase = createServiceRoleClient();
 

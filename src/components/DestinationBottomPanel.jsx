@@ -40,7 +40,8 @@ export default function DestinationBottomPanel() {
     const [details, setDetails] = useState(null);
     const [isLoadingDetails, setIsLoadingDetails] = useState(false);
     const [detailsError, setDetailsError] = useState(null);
-    const [isSaving, setIsSaving] = useState(false);
+    const [isFavourited, setIsFavourited] = useState(false);
+    const [isFavLoading, setIsFavLoading] = useState(false);
     const [saveMessage, setSaveMessage] = useState(null);
 
     useEffect(() => {
@@ -86,6 +87,43 @@ export default function DestinationBottomPanel() {
         };
     }, [destination?.id]);
 
+    useEffect(() => {
+        if (!destination?.id || !destination?.provider) {
+            setIsFavourited(false);
+            setSaveMessage(null);
+            return;
+        }
+
+        let cancelled = false;
+        const loadFavStatus = async () => {
+            try {
+                const params = new URLSearchParams({
+                    provider: destination.provider,
+                    externalId: destination.id,
+                });
+                const response = await fetch(`/api/places/save?${params.toString()}`);
+                const payload = await response.json().catch(() => ({}));
+
+                if (!response.ok) {
+                    throw new Error(payload.error || 'Failed to load favourite status');
+                }
+
+                if (!cancelled) {
+                    setIsFavourited(Boolean(payload.isFavourited));
+                }
+            } catch (error) {
+                if (!cancelled) {
+                    console.warn('[DestinationBottomPanel] favourite status check failed', error);
+                }
+            }
+        };
+
+        loadFavStatus();
+        return () => {
+            cancelled = true;
+        };
+    }, [destination?.id, destination?.provider]);
+
     if (!destination) {
         return null;
     }
@@ -118,16 +156,39 @@ export default function DestinationBottomPanel() {
         clearDestination();
     };
 
-    const handleSaveToFavourites = async () => {
+    const handleToggleFavourite = async () => {
         if (!destination?.id || !destination?.provider) {
-            setSaveMessage('Missing place identifier for save');
+            setSaveMessage('Missing place identifier');
             return;
         }
 
-        setIsSaving(true);
+        const wasFavourited = isFavourited;
+        setIsFavLoading(true);
         setSaveMessage(null);
+        setIsFavourited(!wasFavourited);
 
         try {
+            if (wasFavourited) {
+                const response = await fetch('/api/places/save', {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        provider: destination.provider,
+                        externalId: destination.id,
+                    }),
+                });
+
+                const payload = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    throw new Error(payload.error || 'Failed to remove from Favourites');
+                }
+
+                setSaveMessage('Removed from Favourites');
+                return;
+            }
+
             const response = await fetch('/api/places/save', {
                 method: 'POST',
                 headers: {
@@ -153,9 +214,10 @@ export default function DestinationBottomPanel() {
 
             setSaveMessage(payload.alreadyInList ? 'Already in Favourites' : 'Saved to Favourites');
         } catch (error) {
-            setSaveMessage(error.message || 'Failed to save place');
+            setIsFavourited(wasFavourited);
+            setSaveMessage(error.message || 'Failed to update Favourites');
         } finally {
-            setIsSaving(false);
+            setIsFavLoading(false);
         }
     };
 
@@ -206,13 +268,23 @@ export default function DestinationBottomPanel() {
 
                 <Button
                     type="button"
-                    variant="secondary"
-                    size="sm"
-                    className="shrink-0"
-                    onClick={handleSaveToFavourites}
-                    disabled={isSaving}
+                    variant="ghost"
+                    size="icon-sm"
+                    className="shrink-0 rounded-full bg-muted/50 hover:bg-muted"
+                    onClick={handleToggleFavourite}
+                    disabled={isFavLoading}
+                    aria-pressed={isFavourited}
+                    aria-label={isFavourited ? 'Remove from Favourites' : 'Save to Favourites'}
                 >
-                    {isSaving ? 'Saving...' : 'Save'}
+                    <Star
+                        className={cn(
+                            'size-5',
+                            isFavourited
+                                ? 'fill-amber-400 text-amber-400'
+                                : 'fill-none text-muted-foreground'
+                        )}
+                        aria-hidden
+                    />
                 </Button>
 
                 <Button

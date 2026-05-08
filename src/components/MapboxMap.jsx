@@ -3,16 +3,21 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
+import { ChevronRight } from 'lucide-react';
 import usePlaceStore from '@/store/placeStore';
 import useMapViewStore from '@/store/mapViewStore';
 import { resolveZenStyle } from '@/lib/mapboxZenStyle';
 import { debugMap } from '@/lib/debugMap';
+import compassStyles from './Compass.module.css';
 
 const ROUTE_LAYER_PREFIX = 'route-layer-';
 const ROUTE_SOURCE_PREFIX = 'route-source-';
 const REVEAL_ZOOM = 17;
 const ZEN_ZOOM = 22;
 const MODE_TWEEN_MS = 300;
+const COMPASS_MIN_SCALE = 0.16;
+const OFFSCREEN_INSET_PX = 16;
+const OFFSCREEN_INDICATOR_SIZE_PX = 24;
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
@@ -59,9 +64,22 @@ const MapboxMap = forwardRef(function MapboxMap(
     const modeTweenFrameRef = useRef(null);
     const opacityRef = useRef(0);
     const [opacity, setOpacity] = useState(0);
+    const [userScreenPosition, setUserScreenPosition] = useState(null);
+    const [offScreenIndicator, setOffScreenIndicator] = useState(null);
     const currentLocation = usePlaceStore((state) => state.currentLocation);
+    const angle = usePlaceStore((state) => state.angle);
     const mode = useMapViewStore((state) => state.mode);
     const deviceHeading = useMapViewStore((state) => state.deviceHeading);
+    const currentZoom = useMapViewStore((state) => state.currentZoom);
+
+    const compassScale = useMemo(() => {
+        const zoomProgress = clamp((currentZoom - REVEAL_ZOOM) / (ZEN_ZOOM - REVEAL_ZOOM), 0, 1);
+        return COMPASS_MIN_SCALE + zoomProgress * (1 - COMPASS_MIN_SCALE);
+    }, [currentZoom]);
+
+    const needleRotation =
+        angle != null && deviceHeading != null ? angle - deviceHeading : 0;
+    const showNeedle = Boolean(destination && angle != null);
 
     const setOpacityValue = useCallback((value) => {
         const clamped = clamp(value, 0, 1);
@@ -190,14 +208,47 @@ const MapboxMap = forwardRef(function MapboxMap(
             return;
         }
 
-        if (mode !== 'zen') {
+        if (mode === 'zen') {
+            map.jumpTo({
+                center: [currentLocation.longitude, currentLocation.latitude],
+            });
+        }
+    }, [currentLocation, mode]);
+
+    useEffect(() => {
+        const map = mapRef.current;
+        if (!map || !currentLocation) {
+            setUserScreenPosition(null);
             return;
         }
 
-        map.jumpTo({
-            center: [currentLocation.longitude, currentLocation.latitude],
-        });
-    }, [currentLocation, mode]);
+        let frameId = null;
+
+        const updatePosition = () => {
+            frameId = null;
+            const point = map.project([currentLocation.longitude, currentLocation.latitude]);
+            setUserScreenPosition({ x: point.x, y: point.y });
+        };
+
+        const requestUpdate = () => {
+            if (frameId !== null) {
+                return;
+            }
+            frameId = requestAnimationFrame(updatePosition);
+        };
+
+        map.on('move', requestUpdate);
+        map.on('zoom', requestUpdate);
+        requestUpdate();
+
+        return () => {
+            map.off('move', requestUpdate);
+            map.off('zoom', requestUpdate);
+            if (frameId !== null) {
+                cancelAnimationFrame(frameId);
+            }
+        };
+    }, [currentLocation]);
 
     useEffect(() => {
         const map = mapRef.current;
@@ -250,9 +301,9 @@ const MapboxMap = forwardRef(function MapboxMap(
                             'line-join': 'round',
                         },
                         paint: {
-                            'line-color': '#333333',
-                            'line-width': isRecommended ? 2 : 1,
-                            'line-opacity': isRecommended ? 0.8 : 0.25,
+                            'line-color': '#a1d2fc',
+                            'line-width': isRecommended ? 8 : 4,
+                            'line-opacity': isRecommended ? 0.95 : 0.4,
                         },
                     });
                 }
@@ -378,6 +429,81 @@ const MapboxMap = forwardRef(function MapboxMap(
         animateOpacityTo(targetOpacity, MODE_TWEEN_MS);
     }, [animateOpacityTo, mode]);
 
+    useEffect(() => {
+        const map = mapRef.current;
+        if (!map || !destination) {
+            setOffScreenIndicator(null);
+            return;
+        }
+
+        let frameId = null;
+
+        const updateIndicator = () => {
+            frameId = null;
+            const container = map.getContainer();
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+            if (!width || !height) {
+                setOffScreenIndicator(null);
+                return;
+            }
+
+            const point = map.project([destination.longitude, destination.latitude]);
+            const inset = OFFSCREEN_INSET_PX;
+            const isInside =
+                point.x >= inset &&
+                point.x <= width - inset &&
+                point.y >= inset &&
+                point.y <= height - inset;
+
+            if (isInside) {
+                setOffScreenIndicator(null);
+                return;
+            }
+
+            const cx = width / 2;
+            const cy = height / 2;
+            const dx = point.x - cx;
+            const dy = point.y - cy;
+
+            if (dx === 0 && dy === 0) {
+                setOffScreenIndicator(null);
+                return;
+            }
+
+            const halfW = Math.max(width / 2 - inset, 1);
+            const halfH = Math.max(height / 2 - inset, 1);
+            const tX = dx === 0 ? Infinity : Math.abs(halfW / dx);
+            const tY = dy === 0 ? Infinity : Math.abs(halfH / dy);
+            const t = Math.min(tX, tY);
+
+            setOffScreenIndicator({
+                x: cx + dx * t,
+                y: cy + dy * t,
+                rotation: (Math.atan2(dy, dx) * 180) / Math.PI,
+            });
+        };
+
+        const requestUpdate = () => {
+            if (frameId !== null) {
+                return;
+            }
+            frameId = requestAnimationFrame(updateIndicator);
+        };
+
+        map.on('move', requestUpdate);
+        map.on('zoom', requestUpdate);
+        requestUpdate();
+
+        return () => {
+            map.off('move', requestUpdate);
+            map.off('zoom', requestUpdate);
+            if (frameId !== null) {
+                cancelAnimationFrame(frameId);
+            }
+        };
+    }, [destination]);
+
     useImperativeHandle(ref, () => ({
         setCenter: (latitude, longitude) => {
             if (!mapRef.current) {
@@ -427,25 +553,89 @@ const MapboxMap = forwardRef(function MapboxMap(
     }), [animateOpacityTo, setOpacityValue]);
 
     return (
-        <div
-            aria-hidden="true"
-            style={{
-                position: 'absolute',
-                inset: 0,
-                zIndex: 0,
-                opacity,
-                pointerEvents: 'none',
-            }}
-        >
+        <>
             <div
-                ref={containerRef}
+                aria-hidden="true"
                 style={{
                     position: 'absolute',
                     inset: 0,
+                    zIndex: 0,
+                    opacity,
                     pointerEvents: 'none',
                 }}
-            />
-        </div>
+            >
+                <div
+                    ref={containerRef}
+                    style={{
+                        position: 'absolute',
+                        inset: 0,
+                        pointerEvents: 'none',
+                    }}
+                />
+                {destination && offScreenIndicator ? (
+                    <div
+                        aria-hidden="true"
+                        style={{
+                            position: 'absolute',
+                            left: offScreenIndicator.x,
+                            top: offScreenIndicator.y,
+                            transform: 'translate(-50%, -50%)',
+                            pointerEvents: 'none',
+                        }}
+                    >
+                        <div
+                            style={{
+                                position: 'relative',
+                                width: OFFSCREEN_INDICATOR_SIZE_PX,
+                                height: OFFSCREEN_INDICATOR_SIZE_PX,
+                                borderRadius: '50%',
+                                backgroundColor: '#555555',
+                                boxShadow: '0 0 0 2px rgba(255,255,255,0.85)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                            }}
+                        >
+                            <ChevronRight
+                                aria-hidden="true"
+                                style={{
+                                    width: 14,
+                                    height: 14,
+                                    color: '#FFFFFF',
+                                    transform: `rotate(${offScreenIndicator.rotation}deg)`,
+                                }}
+                            />
+                        </div>
+                    </div>
+                ) : null}
+            </div>
+            {userScreenPosition ? (
+                <div
+                    aria-hidden="true"
+                    style={{
+                        position: 'absolute',
+                        left: userScreenPosition.x,
+                        top: userScreenPosition.y,
+                        transform: `translate(-50%, -50%) scale(${compassScale})`,
+                        transition: `transform ${MODE_TWEEN_MS}ms cubic-bezier(0.33, 1, 0.68, 1)`,
+                        zIndex: 5,
+                        pointerEvents: 'none',
+                    }}
+                >
+                    <div id={compassStyles.compass}>
+                        <div
+                            id={compassStyles.needle}
+                            style={{
+                                display: showNeedle ? 'block' : 'none',
+                                transform: `rotate(${needleRotation.toFixed(2)}deg)`,
+                            }}
+                        >
+                            <div id={compassStyles.needleCircle}></div>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
+        </>
     );
 });
 

@@ -24,9 +24,9 @@ export const zenStylePresets = {
             type: 'fill',
             source: 'composite',
             'source-layer': 'building',
+            minzoom: 0,
             paint: {
-                'fill-color': '#DCDCDC',
-                'fill-outline-color': '#CFCFCF',
+                'fill-color': '#f6f6f6',
             },
         },
     ]),
