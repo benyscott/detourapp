@@ -87,12 +87,25 @@ export default function useTourRun({ tourId, totalStops }) {
     notify();
   }, [tourId]);
 
+  const goTo = useCallback(
+    (nextIndex) => {
+      if (!tourId) return;
+      const clamped = clamp(Number(nextIndex) || 0, 0, Math.max(safeTotal - 1, 0));
+      if (clamped === currentIndex) return;
+      saveRun(tourId, { currentIndex: clamped, completed });
+      snapshotCache.delete(tourId);
+      notify();
+    },
+    [tourId, currentIndex, completed, safeTotal]
+  );
+
   const isComplete = safeTotal > 0 && currentIndex >= safeTotal;
 
   return {
     currentIndex,
     completed,
     advance,
+    goTo,
     reset,
     isComplete,
   };
