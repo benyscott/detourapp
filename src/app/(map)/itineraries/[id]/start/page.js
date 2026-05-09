@@ -1,16 +1,9 @@
-import { notFound } from 'next/navigation';
-import TourOverlay from '@/components/itineraries/TourOverlay';
-import { getItinerary } from '@/lib/itineraries/repository';
+import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
 
+/** Itinerary playback lives on the root map at `/?tour=<id>` (BAN-135). */
 export default async function StartItineraryPage({ params }) {
     const { id } = await params;
-    const itinerary = await getItinerary({ id });
-
-    if (!itinerary) {
-        notFound();
-    }
-
-    return <TourOverlay itinerary={itinerary} />;
+    redirect(`/?tour=${encodeURIComponent(id)}`);
 }

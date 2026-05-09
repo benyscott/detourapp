@@ -1,66 +1,17 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
 import { Map, X } from 'lucide-react';
 import useMapViewStore from '@/store/mapViewStore';
 import { Button } from '@/components/ui/button';
-
-const HOLD_MS = 500;
+import { cn } from '@/lib/utils';
 
 export default function MapToggleButton() {
     const mode = useMapViewStore((state) => state.mode);
-    const setMode = useMapViewStore((state) => state.setMode);
+    const toggleMode = useMapViewStore((state) => state.toggleMode);
     const isZenMode = mode === 'zen';
 
-    const holdTimerRef = useRef(null);
-    const isHoldingRef = useRef(false);
-    const wasLatchedAtPressRef = useRef(false);
-    const gestureEndedRef = useRef(false);
-
-    useEffect(() => {
-        return () => {
-            if (holdTimerRef.current !== null) {
-                window.clearTimeout(holdTimerRef.current);
-                holdTimerRef.current = null;
-            }
-        };
-    }, []);
-
-    const handlePointerDown = (event) => {
-        event.currentTarget.setPointerCapture?.(event.pointerId);
-        gestureEndedRef.current = false;
-        wasLatchedAtPressRef.current = useMapViewStore.getState().mode === 'reveal';
-        isHoldingRef.current = false;
-
-        setMode('reveal');
-
-        if (holdTimerRef.current !== null) {
-            window.clearTimeout(holdTimerRef.current);
-        }
-        holdTimerRef.current = window.setTimeout(() => {
-            holdTimerRef.current = null;
-            isHoldingRef.current = true;
-        }, HOLD_MS);
-    };
-
-    const handlePointerEnd = () => {
-        if (gestureEndedRef.current) {
-            return;
-        }
-        gestureEndedRef.current = true;
-
-        if (holdTimerRef.current !== null) {
-            window.clearTimeout(holdTimerRef.current);
-            holdTimerRef.current = null;
-        }
-
-        if (isHoldingRef.current) {
-            setMode('zen');
-        } else if (wasLatchedAtPressRef.current) {
-            setMode('zen');
-        }
-
-        isHoldingRef.current = false;
+    const handleClick = () => {
+        toggleMode();
     };
 
     return (
@@ -70,11 +21,12 @@ export default function MapToggleButton() {
             variant="ghost"
             aria-label={isZenMode ? 'Show map' : 'Hide map'}
             aria-pressed={!isZenMode}
-            className="rounded-full bg-transparent text-slate-900 hover:bg-black/5 touch-manipulation select-none"
-            onPointerDown={handlePointerDown}
-            onPointerUp={handlePointerEnd}
-            onPointerCancel={handlePointerEnd}
-            onPointerLeave={handlePointerEnd}
+            className={cn(
+                'glass-icon-btn h-11 w-11 touch-manipulation select-none rounded-full text-slate-900 shadow-none',
+                'hover:bg-white/35 focus-visible:ring-2 focus-visible:ring-ring/60',
+                'dark:text-foreground dark:hover:bg-white/10'
+            )}
+            onClick={handleClick}
         >
             {isZenMode ? <Map /> : <X />}
         </Button>

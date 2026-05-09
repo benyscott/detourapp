@@ -13,7 +13,6 @@ export default function BottomBar() {
     const isSearchOpen = useMapViewStore((s) => s.isSearchOpen);
     const isCafesOpen = useMapViewStore((s) => s.isCafesOpen);
     const destination = usePlaceStore((s) => s.destination);
-    const showPill = !isSearchOpen && !isCafesOpen;
 
     const activePanel = isSearchOpen
         ? <PlaceSearch />
@@ -25,11 +24,9 @@ export default function BottomBar() {
 
     return (
         <div
-            className="fixed inset-x-0 z-[1100] flex flex-col items-stretch gap-2 px-4"
+            className="fixed inset-x-0 z-[1100] flex flex-col gap-2 px-3"
             style={{
-                bottom: isSearchOpen
-                    ? 'calc(5rem + env(safe-area-inset-bottom, 0px))'
-                    : 'calc(1rem + env(safe-area-inset-bottom, 0px))',
+                bottom: 'calc(0.5rem + env(safe-area-inset-bottom, 0px))',
             }}
         >
             <PermissionAlerts />
@@ -43,11 +40,7 @@ export default function BottomBar() {
                     {activePanel}
                 </div>
             ) : null}
-            {showPill ? (
-                <div className="flex w-full justify-center">
-                    <MapActionBar />
-                </div>
-            ) : null}
+            <MapActionBar />
         </div>
     );
 }

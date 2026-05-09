@@ -8,8 +8,20 @@ const useMapViewStore = create((set) => ({
     deviceOrientationIssue: null,
     isSearchOpen: false,
     isCafesOpen: false,
+    /** True while an itinerary tour is running on `/?tour=` (BAN-135). */
+    tourOpen: false,
+    /**
+     * When true, map bearing tracks deviceHeading in reveal mode (BAN-141).
+     * User rotate gestures flip this false until re-enabled via toggle.
+     */
+    bearingFollowsHeading: true,
+    /** Increment so MapboxMap can ease bearing back to heading after toggling. */
+    headingSnapToken: 0,
 
     setMode: (mode) => set({ mode }),
+    setTourOpen: (tourOpen) => set({ tourOpen }),
+    setBearingFollowsHeading: (bearingFollowsHeading) => set({ bearingFollowsHeading }),
+    pulseHeadingSnap: () => set((state) => ({ headingSnapToken: state.headingSnapToken + 1 })),
     setCurrentZoom: (currentZoom) => set({ currentZoom }),
     setDeviceHeading: (deviceHeading) => set({ deviceHeading }),
     setDeviceOrientationIssue: (deviceOrientationIssue) => set({ deviceOrientationIssue }),

@@ -1,9 +1,9 @@
 'use client';
 
-import React from 'react';
 import usePlaceStore from '@/store/placeStore';
+import { cn } from '@/lib/utils';
 
-export default function DistanceInfo() {
+export default function DistanceInfo({ className }) {
     const { distance, destination } = usePlaceStore();
 
     if (!destination || !distance) {
@@ -13,8 +13,11 @@ export default function DistanceInfo() {
     return (
         <p
             id="distance"
+            className={cn(
+                'font-sans m-0 block text-lg font-normal tracking-tight text-foreground',
+                className
+            )}
             style={{
-                display: 'block',
                 opacity: distance ? 1 : 0,
                 transition: 'opacity 1s ease-in-out',
             }}

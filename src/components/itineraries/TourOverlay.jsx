@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
 import DestinationInfo from '@/components/DestinationInfo';
+import DestinationSummaryMeta from '@/components/DestinationSummaryMeta';
 import DistanceInfo from '@/components/DistanceInfo';
 import NavigationBar from '@/components/NavigationBar';
 import StopArrivalSheet from '@/components/itineraries/StopArrivalSheet';
@@ -12,6 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import useTourRun from '@/hooks/useTourRun';
 import { calculateDistance } from '@/lib/geoUtils';
 import { ARRIVAL_THRESHOLD_M } from '@/lib/itineraries/runner';
+import useMapViewStore from '@/store/mapViewStore';
 import usePlaceStore from '@/store/placeStore';
 import { cn } from '@/lib/utils';
 
@@ -34,6 +36,13 @@ export default function TourOverlay({ itinerary }) {
     const setDestination = usePlaceStore((state) => state.setDestination);
     const clearDestination = usePlaceStore((state) => state.clearDestination);
     const currentLocation = usePlaceStore((state) => state.currentLocation);
+
+    useEffect(() => {
+        useMapViewStore.getState().setTourOpen(true);
+        return () => {
+            useMapViewStore.getState().setTourOpen(false);
+        };
+    }, []);
 
     const currentStop = !isComplete ? (stops[currentIndex] ?? null) : null;
 
@@ -189,6 +198,10 @@ export default function TourOverlay({ itinerary }) {
                     >
                         <ChevronRight />
                     </Button>
+                </div>
+
+                <div className="pointer-events-auto flex w-full justify-center px-2">
+                    <DestinationSummaryMeta />
                 </div>
 
                 <DistanceInfo />

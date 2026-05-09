@@ -97,6 +97,10 @@ export default function usePinchZoom(mapRef) {
         };
 
         const handleTouchStart = (event) => {
+            if (useMapViewStore.getState().mode === 'reveal') {
+                return;
+            }
+
             if (event.touches.length !== 2) {
                 return;
             }
@@ -119,6 +123,10 @@ export default function usePinchZoom(mapRef) {
         };
 
         const handleTouchMove = (event) => {
+            if (useMapViewStore.getState().mode === 'reveal') {
+                return;
+            }
+
             if (!isPinching || event.touches.length !== 2) {
                 return;
             }
@@ -162,6 +170,13 @@ export default function usePinchZoom(mapRef) {
         };
 
         const handleTouchEnd = (event) => {
+            if (useMapViewStore.getState().mode === 'reveal') {
+                isPinching = false;
+                moveLogCounter = 0;
+                previousMidpoint = null;
+                return;
+            }
+
             if (!isPinching) {
                 return;
             }

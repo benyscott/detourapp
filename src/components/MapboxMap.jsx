@@ -15,6 +15,8 @@ const ROUTE_SOURCE_PREFIX = 'route-source-';
 const REVEAL_ZOOM = 17;
 const ZEN_ZOOM = 22;
 const MODE_TWEEN_MS = 300;
+/** Subtle horizon tilt (BAN-136); keep readable ground detail. */
+const MAP_PITCH = 36;
 /** At REVEAL_ZOOM, ~25vw with 33vw compass (see Compass.module.css). */
 const COMPASS_MIN_SCALE = 0.14;
 const OFFSCREEN_INSET_PX = 16;
@@ -67,10 +69,16 @@ const MapboxMap = forwardRef(function MapboxMap(
     const [opacity, setOpacity] = useState(0);
     const [userScreenPosition, setUserScreenPosition] = useState(null);
     const [offScreenIndicator, setOffScreenIndicator] = useState(null);
+    const [mapRoseBearingDeg, setMapRoseBearingDeg] = useState(0);
+    const headingEaseProgrammaticRef = useRef(false);
+    const prevDestinationRef = useRef(undefined);
     const currentLocation = usePlaceStore((state) => state.currentLocation);
     const angle = usePlaceStore((state) => state.angle);
     const mode = useMapViewStore((state) => state.mode);
     const deviceHeading = useMapViewStore((state) => state.deviceHeading);
+    const bearingFollowsHeading = useMapViewStore((state) => state.bearingFollowsHeading);
+    const headingSnapToken = useMapViewStore((state) => state.headingSnapToken);
+    const setBearingFollowsHeading = useMapViewStore((state) => state.setBearingFollowsHeading);
     const currentZoom = useMapViewStore((state) => state.currentZoom);
 
     const compassScale = useMemo(() => {
@@ -146,7 +154,8 @@ const MapboxMap = forwardRef(function MapboxMap(
             style: resolvedStyle,
             center: initialCenter,
             zoom: 22,
-            interactive: false,
+            pitch: MAP_PITCH,
+            interactive: true,
             attributionControl: false,
             dragPan: false,
             scrollZoom: false,
@@ -212,9 +221,138 @@ const MapboxMap = forwardRef(function MapboxMap(
         if (mode === 'zen') {
             map.jumpTo({
                 center: [currentLocation.longitude, currentLocation.latitude],
+                pitch: MAP_PITCH,
             });
         }
     }, [currentLocation, mode]);
+
+    /** Reveal vs zen: gesture handlers & heading lock resets (BAN-141). */
+    useEffect(() => {
+        const map = mapRef.current;
+        if (!map) {
+            return;
+        }
+
+        if (mode === 'reveal') {
+            try {
+                map.dragRotate?.enable?.();
+                map.touchZoomRotate?.enable?.();
+            } catch {
+                debugMap('handlers enable failed — map still usable');
+            }
+            return () => {
+                try {
+                    map.dragRotate?.disable?.();
+                    map.touchZoomRotate?.disable?.();
+                } catch {
+                    // ignore teardown errors during hot reload
+                }
+            };
+        }
+
+        try {
+            map.dragRotate?.disable?.();
+            map.touchZoomRotate?.disable?.();
+        } catch {
+            // ignore
+        }
+
+        /** Zen always aligns with compass heading semantics */
+        useMapViewStore.getState().setBearingFollowsHeading(true);
+
+        return () => {};
+    }, [mode]);
+
+    useEffect(() => {
+        const map = mapRef.current;
+        if (!map) {
+            return undefined;
+        }
+
+        const syncRose = () => {
+            setMapRoseBearingDeg(map.getBearing());
+        };
+
+        syncRose();
+
+        const handleRotateStart = () => {
+            if (useMapViewStore.getState().mode !== 'reveal') {
+                return;
+            }
+            if (headingEaseProgrammaticRef.current) {
+                return;
+            }
+            useMapViewStore.getState().setBearingFollowsHeading(false);
+        };
+
+        map.on('rotate', syncRose);
+        map.on('moveend', syncRose);
+        map.on('zoomend', syncRose);
+        map.on('rotatestart', handleRotateStart);
+
+        return () => {
+            map.off('rotate', syncRose);
+            map.off('moveend', syncRose);
+            map.off('zoomend', syncRose);
+            map.off('rotatestart', handleRotateStart);
+        };
+    }, [setBearingFollowsHeading]);
+
+    /** Snap bearing to compass after user taps “Heading” in reveal mode */
+    useEffect(() => {
+        if (headingSnapToken === 0) {
+            return;
+        }
+
+        const map = mapRef.current;
+        const dh = useMapViewStore.getState().deviceHeading;
+
+        if (!map || dh == null || mode !== 'reveal') {
+            return;
+        }
+
+        headingEaseProgrammaticRef.current = true;
+        map.easeTo({
+            bearing: dh,
+            pitch: MAP_PITCH,
+            duration: MODE_TWEEN_MS,
+            essential: true,
+        });
+
+        const settle = () => {
+            headingEaseProgrammaticRef.current = false;
+            map.off('moveend', settle);
+        };
+        map.once('moveend', settle);
+    }, [headingSnapToken, mode]);
+
+    useEffect(() => {
+        const map = mapRef.current;
+        if (!map || deviceHeading == null) {
+            return;
+        }
+
+        const follow = mode === 'zen' || bearingFollowsHeading;
+        if (!follow) {
+            return;
+        }
+
+        map.setBearing(deviceHeading);
+    }, [deviceHeading, mode, bearingFollowsHeading]);
+
+    /** BAN-127: exiting navigation restores zen mode so map returns to compass-default zoom. */
+    useEffect(() => {
+        const prev = prevDestinationRef.current;
+        prevDestinationRef.current = destination;
+
+        if (prev === undefined) {
+            return;
+        }
+
+        if (prev != null && destination == null) {
+            useMapViewStore.getState().setMode('zen');
+        }
+    }, [destination]);
 
     useEffect(() => {
         const map = mapRef.current;
@@ -250,15 +388,6 @@ const MapboxMap = forwardRef(function MapboxMap(
             }
         };
     }, [currentLocation]);
-
-    useEffect(() => {
-        const map = mapRef.current;
-        if (!map || deviceHeading == null) {
-            return;
-        }
-
-        map.setBearing(deviceHeading);
-    }, [deviceHeading]);
 
     useEffect(() => {
         const map = mapRef.current;
@@ -419,15 +548,30 @@ const MapboxMap = forwardRef(function MapboxMap(
             return;
         }
 
+        const setCurrentZoomStore = useMapViewStore.getState().setCurrentZoom;
+        map.stop();
+
         const targetZoom = mode === 'reveal' ? REVEAL_ZOOM : ZEN_ZOOM;
         const targetOpacity = mode === 'reveal' ? 1 : 0;
 
         map.easeTo({
             zoom: targetZoom,
+            pitch: MAP_PITCH,
             duration: MODE_TWEEN_MS,
             essential: true,
         });
         animateOpacityTo(targetOpacity, MODE_TWEEN_MS);
+
+        /** Snap zoom to store after easeTo so Compass scale stays in sync on mobile interrupted tweens */
+        const snapTimer = window.setTimeout(() => {
+            map.stop();
+            map.setZoom(targetZoom);
+            setCurrentZoomStore(targetZoom);
+        }, MODE_TWEEN_MS + 32);
+
+        return () => {
+            window.clearTimeout(snapTimer);
+        };
     }, [animateOpacityTo, mode]);
 
     useEffect(() => {
@@ -513,6 +657,7 @@ const MapboxMap = forwardRef(function MapboxMap(
 
             mapRef.current.jumpTo({
                 center: [longitude, latitude],
+                pitch: MAP_PITCH,
             });
         },
         setZoom: (zoom) => {
@@ -545,6 +690,7 @@ const MapboxMap = forwardRef(function MapboxMap(
 
             map.easeTo({
                 center: [loc.longitude, loc.latitude],
+                pitch: MAP_PITCH,
                 duration: MODE_TWEEN_MS,
                 essential: true,
             });
@@ -555,14 +701,25 @@ const MapboxMap = forwardRef(function MapboxMap(
                 return;
             }
 
+            const setCurrentZoomStore = useMapViewStore.getState().setCurrentZoom;
+            map.stop();
+
             const targetZoom = nextMode === 'reveal' ? REVEAL_ZOOM : ZEN_ZOOM;
             const targetOpacity = nextMode === 'reveal' ? 1 : 0;
+
             map.easeTo({
                 zoom: targetZoom,
+                pitch: MAP_PITCH,
                 duration: MODE_TWEEN_MS,
                 essential: true,
             });
             animateOpacityTo(targetOpacity, MODE_TWEEN_MS);
+
+            window.setTimeout(() => {
+                map.stop();
+                map.setZoom(targetZoom);
+                setCurrentZoomStore(targetZoom);
+            }, MODE_TWEEN_MS + 32);
         },
     }), [animateOpacityTo, setOpacityValue]);
 
@@ -575,7 +732,7 @@ const MapboxMap = forwardRef(function MapboxMap(
                     inset: 0,
                     zIndex: 0,
                     opacity,
-                    pointerEvents: 'none',
+                    pointerEvents: mode === 'reveal' ? 'auto' : 'none',
                 }}
             >
                 <div
@@ -583,7 +740,7 @@ const MapboxMap = forwardRef(function MapboxMap(
                     style={{
                         position: 'absolute',
                         inset: 0,
-                        pointerEvents: 'none',
+                        pointerEvents: mode === 'reveal' ? 'auto' : 'none',
                     }}
                 />
                 {destination && offScreenIndicator ? (
@@ -646,6 +803,26 @@ const MapboxMap = forwardRef(function MapboxMap(
                         >
                             <div id={compassStyles.needleCircle}></div>
                         </div>
+                    </div>
+                </div>
+            ) : null}
+            {mode === 'reveal' && !bearingFollowsHeading ? (
+                <div
+                    className="glass-surface pointer-events-none fixed right-5 top-28 z-[8] flex size-14 flex-col items-center justify-center rounded-full transition-opacity duration-300"
+                    role="status"
+                    aria-live="polite"
+                    aria-label="Map north indicator"
+                >
+                    <div
+                        className="absolute inset-1 rounded-full border border-dashed border-white/40"
+                        aria-hidden
+                    />
+                    <div
+                        className="text-foreground relative text-xs font-bold tracking-tight drop-shadow-sm"
+                        style={{ transform: `rotate(${-mapRoseBearingDeg}deg)` }}
+                        aria-hidden
+                    >
+                        N
                     </div>
                 </div>
             ) : null}
