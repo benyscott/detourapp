@@ -5,6 +5,7 @@ import useCompass from '@/hooks/useCompass';
 import {
     AlertDialog,
     AlertDialogAction,
+    AlertDialogCancel,
     AlertDialogContent,
     AlertDialogDescription,
     AlertDialogFooter,
@@ -13,7 +14,7 @@ import {
 } from '@/components/ui/alert-dialog';
 
 export default function Compass() {
-    const { requestPermission, needsPermission } = useCompass();
+    const { requestPermission, needsPermission, dismissPermissionPrompt } = useCompass();
     const [isRequesting, setIsRequesting] = useState(false);
 
     const handleRequestPermission = async () => {
@@ -36,6 +37,9 @@ export default function Compass() {
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
+                    <AlertDialogCancel type="button" onClick={dismissPermissionPrompt}>
+                        Not now
+                    </AlertDialogCancel>
                     <AlertDialogAction onClick={handleRequestPermission} disabled={isRequesting}>
                         {isRequesting ? 'Requesting...' : 'Enable Compass'}
                     </AlertDialogAction>

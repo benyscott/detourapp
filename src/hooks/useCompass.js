@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import usePlaceStore from '@/store/placeStore';
 import useMapViewStore from '@/store/mapViewStore';
-import { debugMap } from '@/lib/debugMap';
 
 const isIOS = typeof window !== 'undefined' &&
     navigator.userAgent.match(/(iPod|iPhone|iPad)/) &&
@@ -21,6 +20,8 @@ export default function useCompass() {
     const angleRef = useRef(angle);
     const destinationRef = useRef(destination);
     const setDeviceHeading = useMapViewStore((state) => state.setDeviceHeading);
+    const clearDeviceOrientationIssue = useMapViewStore((state) => state.clearDeviceOrientationIssue);
+    const setDeviceOrientationIssue = useMapViewStore((state) => state.setDeviceOrientationIssue);
     const isActive = Boolean(destination && angle);
 
     useEffect(() => {
@@ -56,7 +57,6 @@ export default function useCompass() {
 
             const rotation = currentAngle - deviceHeading;
             setDeviceHeading(deviceHeading);
-            // debugMap('compass heading', { deviceHeading, angle: currentAngle, rotation });
             setNeedleRotation(rotation);
         };
 
@@ -99,36 +99,60 @@ export default function useCompass() {
         };
     }, [setDeviceHeading]);
 
+    const attachListenersFromHandler = () => {
+        const handler = orientationHandlerRef.current;
+        if (!handler) {
+            return false;
+        }
+        if (isIOS) {
+            window.addEventListener('deviceorientation', handler, true);
+        } else {
+            window.addEventListener('deviceorientationabsolute', handler, true);
+            window.addEventListener('deviceorientation', handler, true);
+        }
+        currentHandlerRef.current = handler;
+        orientationAcceptedRef.current = true;
+        return true;
+    };
+
     const requestPermission = async () => {
         if (orientationAcceptedRef.current) return true;
 
-        if (isIOS) {
-            if (typeof DeviceOrientationEvent !== 'undefined' &&
-                typeof DeviceOrientationEvent.requestPermission === 'function') {
-                try {
-                    const response = await DeviceOrientationEvent.requestPermission();
-                    if (response === 'granted') {
-                        if (orientationHandlerRef.current) {
-                            window.addEventListener('deviceorientation', orientationHandlerRef.current, true);
-                            currentHandlerRef.current = orientationHandlerRef.current;
-                            orientationAcceptedRef.current = true;
-                            setNeedsPermission(false);
-                            return true;
-                        } else {
-                            console.warn('[Compass] Orientation handler not available yet');
-                            return false;
-                        }
-                    }
-                    console.warn('[Compass] Orientation permission denied:', response);
-                    return false;
-                } catch (error) {
-                    console.error('[Compass] Orientation not supported:', error);
-                    return false;
-                }
-            }
+        if (
+            typeof DeviceOrientationEvent === 'undefined' ||
+            typeof DeviceOrientationEvent.requestPermission !== 'function'
+        ) {
+            return false;
         }
-        return false;
+
+        try {
+            const response = await DeviceOrientationEvent.requestPermission();
+            if (response === 'granted') {
+                if (attachListenersFromHandler()) {
+                    clearDeviceOrientationIssue();
+                    setNeedsPermission(false);
+                    return true;
+                }
+                console.warn('[Compass] Orientation handler not available yet');
+                setDeviceOrientationIssue('unsupported');
+                setNeedsPermission(false);
+                return false;
+            }
+            console.warn('[Compass] Orientation permission denied:', response);
+            setDeviceOrientationIssue('denied');
+            setNeedsPermission(false);
+            return false;
+        } catch (error) {
+            console.error('[Compass] Orientation not supported:', error);
+            setDeviceOrientationIssue('unsupported');
+            setNeedsPermission(false);
+            return false;
+        }
     };
 
-    return { needleRotation, isActive, requestPermission, needsPermission };
+    const dismissPermissionPrompt = () => {
+        setNeedsPermission(false);
+    };
+
+    return { needleRotation, isActive, requestPermission, needsPermission, dismissPermissionPrompt };
 }

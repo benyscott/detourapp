@@ -34,7 +34,6 @@ export default function TourOverlay({ itinerary }) {
     const setDestination = usePlaceStore((state) => state.setDestination);
     const clearDestination = usePlaceStore((state) => state.clearDestination);
     const currentLocation = usePlaceStore((state) => state.currentLocation);
-    const geolocationError = usePlaceStore((state) => state.geolocationError);
 
     const currentStop = !isComplete ? (stops[currentIndex] ?? null) : null;
 
@@ -218,12 +217,6 @@ export default function TourOverlay({ itinerary }) {
                     })}
                 </div>
             </NavigationBar>
-
-            {geolocationError && (
-                <div className="fixed inset-x-4 bottom-6 z-[900] mx-auto max-w-md rounded-lg border border-destructive/40 bg-destructive/20 px-4 py-3 text-sm text-destructive-foreground backdrop-blur-sm">
-                    {geolocationError}
-                </div>
-            )}
 
             <StopArrivalSheet
                 open={arrivalOpen}

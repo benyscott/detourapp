@@ -19,7 +19,7 @@ export default function PlaceSearch() {
     const locationRef = useRef(null);
     const hideResultsTimeoutRef = useRef(null);
 
-    const { setDestination, currentLocation, geolocationError: geoError } = usePlaceStore();
+    const { setDestination, currentLocation } = usePlaceStore();
     const { searchRadius } = useSettingsStore();
     const isSearchOpen = useMapViewStore((s) => s.isSearchOpen);
     const setSearchOpen = useMapViewStore((s) => s.setSearchOpen);
@@ -156,7 +156,7 @@ export default function PlaceSearch() {
         }, 180);
     };
 
-    if (!isSearchOpen && !geoError) {
+    if (!isSearchOpen) {
         return null;
     }
 
@@ -236,12 +236,6 @@ export default function PlaceSearch() {
                         </div>
                     )}
                 </div>
-            )}
-
-            {geoError && (
-                <p className="rounded-md bg-destructive/10 px-3 py-2 text-center text-sm text-destructive">
-                    {geoError}
-                </p>
             )}
         </div>
     );
