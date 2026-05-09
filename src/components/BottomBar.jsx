@@ -7,6 +7,7 @@ import PermissionAlerts from '@/components/PermissionAlerts';
 import PlaceSearch from '@/components/PlaceSearch';
 import useMapViewStore from '@/store/mapViewStore';
 import usePlaceStore from '@/store/placeStore';
+import { cn } from '@/lib/utils';
 
 export default function BottomBar() {
     const isSearchOpen = useMapViewStore((s) => s.isSearchOpen);
@@ -25,10 +26,23 @@ export default function BottomBar() {
     return (
         <div
             className="fixed inset-x-0 z-[1100] flex flex-col items-stretch gap-2 px-4"
-            style={{ bottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}
+            style={{
+                bottom: isSearchOpen
+                    ? 'calc(5rem + env(safe-area-inset-bottom, 0px))'
+                    : 'calc(1rem + env(safe-area-inset-bottom, 0px))',
+            }}
         >
             <PermissionAlerts />
-            {activePanel ? <div className="w-full max-h-[66vh] overflow-y-auto">{activePanel}</div> : null}
+            {activePanel ? (
+                <div
+                    className={cn(
+                        'w-full',
+                        isSearchOpen ? 'max-h-none overflow-visible' : 'max-h-[66vh] overflow-y-auto'
+                    )}
+                >
+                    {activePanel}
+                </div>
+            ) : null}
             {showPill ? (
                 <div className="flex w-full justify-center">
                     <MapActionBar />
