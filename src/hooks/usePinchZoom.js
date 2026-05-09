@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { debugMap } from '@/lib/debugMap';
 import useMapViewStore from '@/store/mapViewStore';
+import usePlaceStore from '@/store/placeStore';
 
 const MIN_ZOOM = 14;
 const MAX_ZOOM = 22;
@@ -189,6 +190,11 @@ export default function usePinchZoom(mapRef) {
             }
 
             setMode('reveal');
+
+            const loc = usePlaceStore.getState().currentLocation;
+            if (loc && typeof mapApi.recenterOnUser === 'function') {
+                mapApi.recenterOnUser();
+            }
         };
 
         window.addEventListener('touchstart', handleTouchStart, { passive: true });

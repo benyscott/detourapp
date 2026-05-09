@@ -15,7 +15,8 @@ const ROUTE_SOURCE_PREFIX = 'route-source-';
 const REVEAL_ZOOM = 17;
 const ZEN_ZOOM = 22;
 const MODE_TWEEN_MS = 300;
-const COMPASS_MIN_SCALE = 0.16;
+/** At REVEAL_ZOOM, ~25vw with 33vw compass (see Compass.module.css). */
+const COMPASS_MIN_SCALE = 0.14;
 const OFFSCREEN_INSET_PX = 16;
 const OFFSCREEN_INDICATOR_SIZE_PX = 24;
 
@@ -534,6 +535,19 @@ const MapboxMap = forwardRef(function MapboxMap(
             }
 
             mapRef.current.panBy(offsetXY, { duration: 0, animate: false });
+        },
+        recenterOnUser: () => {
+            const map = mapRef.current;
+            const loc = usePlaceStore.getState().currentLocation;
+            if (!map || !loc) {
+                return;
+            }
+
+            map.easeTo({
+                center: [loc.longitude, loc.latitude],
+                duration: MODE_TWEEN_MS,
+                essential: true,
+            });
         },
         animateToMode: (nextMode) => {
             const map = mapRef.current;
