@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Coffee, X } from 'lucide-react';
+import { Coffee, MapPin, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { resolveGeolocationErrorMessage } from '@/lib/geolocationMessages';
 import usePlaceStore from '@/store/placeStore';
 import useSettingsStore from '@/store/settingsStore';
 import useMapViewStore from '@/store/mapViewStore';
@@ -14,6 +15,7 @@ export default function NearbyCafesPanel() {
     const setCafesOpen = useMapViewStore((s) => s.setCafesOpen);
 
     const currentLocation = usePlaceStore((s) => s.currentLocation);
+    const geolocationError = usePlaceStore((s) => s.geolocationError);
     const setDestination = usePlaceStore((s) => s.setDestination);
     const setRecommendations = usePlaceStore((s) => s.setRecommendations);
     const clearRecommendations = usePlaceStore((s) => s.clearRecommendations);
@@ -23,6 +25,36 @@ export default function NearbyCafesPanel() {
     const [results, setResults] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
+    const [isRequestingLocation, setIsRequestingLocation] = useState(false);
+
+    const handleRequestLocation = () => {
+        if (typeof navigator === 'undefined' || !navigator.geolocation) {
+            usePlaceStore.getState().setGeolocationError('Geolocation is not supported by this browser.');
+            return;
+        }
+
+        setIsRequestingLocation(true);
+        const { setCurrentLocation, setGeolocationError, bumpGeolocationRetry } = usePlaceStore.getState();
+        setGeolocationError(null);
+
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                setCurrentLocation({
+                    latitude: position.coords.latitude,
+                    longitude: position.coords.longitude,
+                });
+                setGeolocationError(null);
+                bumpGeolocationRetry();
+                setIsRequestingLocation(false);
+            },
+            () => {
+                setGeolocationError(resolveGeolocationErrorMessage());
+                bumpGeolocationRetry();
+                setIsRequestingLocation(false);
+            },
+            { enableHighAccuracy: true, maximumAge: 0 }
+        );
+    };
 
     useEffect(() => {
         if (!isCafesOpen) {
@@ -120,9 +152,25 @@ export default function NearbyCafesPanel() {
                 </CardHeader>
                 <CardContent className="min-h-0 flex-1 pt-0">
                     {!currentLocation && (
-                        <p className="text-muted-foreground py-4 text-center text-sm">
-                            Waiting for your location…
-                        </p>
+                        <div className="flex flex-col items-center gap-3 py-4">
+                            <p className="text-muted-foreground px-1 text-center text-sm">
+                                {geolocationError ?? 'Waiting for your location…'}
+                            </p>
+                            <Button
+                                type="button"
+                                variant="secondary"
+                                size="sm"
+                                className="gap-1.5"
+                                disabled={
+                                    isRequestingLocation ||
+                                    (typeof navigator !== 'undefined' && !navigator.geolocation)
+                                }
+                                onClick={handleRequestLocation}
+                            >
+                                <MapPin className="size-4" aria-hidden />
+                                {isRequestingLocation ? 'Requesting…' : 'Use my location'}
+                            </Button>
+                        </div>
                     )}
                     {currentLocation && isLoading && (
                         <p className="text-muted-foreground py-8 text-center text-sm">Loading cafes…</p>

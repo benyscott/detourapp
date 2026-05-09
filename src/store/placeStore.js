@@ -9,6 +9,8 @@ const usePlaceStore = create((set) => ({
     angle: null, // number (bearing in degrees)
     /** Synced from useGeolocation when tracking so overlays can show errors without a second watch */
     geolocationError: null,
+    /** Incremented to restart watchPosition after errors or a user-gesture getCurrentPosition */
+    geolocationRetryKey: 0,
 
     // Actions
     setCurrentLocation: (location) => {
@@ -44,6 +46,9 @@ const usePlaceStore = create((set) => ({
     setAngle: (angle) => set({ angle }),
 
     setGeolocationError: (geolocationError) => set({ geolocationError }),
+
+    bumpGeolocationRetry: () =>
+        set((state) => ({ geolocationRetryKey: state.geolocationRetryKey + 1 })),
 }));
 
 export default usePlaceStore;

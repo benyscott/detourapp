@@ -1,15 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
+import { resolveGeolocationErrorMessage } from '@/lib/geolocationMessages';
 import usePlaceStore from '@/store/placeStore';
-
-const resolveGeolocationErrorMessage = () => {
-    if (typeof window !== 'undefined' && !window.isSecureContext) {
-        const host = window.location.hostname;
-        if (host !== 'localhost' && host !== '127.0.0.1') {
-            return 'Location requires a secure connection (HTTPS). Open this app over HTTPS, or use localhost on your computer.';
-        }
-    }
-    return 'Unable to get your location. Please allow location access.';
-};
 
 /**
  * Hook to track user geolocation and update store
@@ -24,6 +15,7 @@ export default function useGeolocation(isTracking = false) {
 
     const setCurrentLocation = usePlaceStore((state) => state.setCurrentLocation);
     const setGeolocationError = usePlaceStore((state) => state.setGeolocationError);
+    const geolocationRetryKey = usePlaceStore((state) => state.geolocationRetryKey);
 
     useEffect(() => {
         if (!isTracking) {
@@ -93,7 +85,7 @@ export default function useGeolocation(isTracking = false) {
             }
             setGeolocationError(null);
         };
-    }, [isTracking, setCurrentLocation, setGeolocationError]);
+    }, [isTracking, setCurrentLocation, setGeolocationError, geolocationRetryKey]);
 
     return { location, error, isTracking: isWatching };
 }
