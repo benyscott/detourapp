@@ -5,6 +5,8 @@
   "scripts": {
     "dev": "next dev --experimental-https",
     "dev:https": "node server.js",
+    "dev:phone": "next dev -H 0.0.0.0",
+    "tunnel": "ngrok http 3000",
     "supabase:start": "supabase start",
     "supabase:db:push": "supabase link --project-ref zchussuffloliufovzvd && supabase db push",
     "build": "next build",
