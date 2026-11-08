@@ -22,24 +22,31 @@ export function calculateDistance(lat1, lon1, lat2, lon2) {
 }
 
 /**
+ * Distance rounding rules, used for the destination distance and the radius slider:
+ * 5 m steps up to 500 m, 10 m up to 1 km, 100 m up to 2 km, then whole km.
+ * @param {number} distanceInMeters
+ * @returns {number} rounded distance in meters
+ */
+export function roundDistance(distanceInMeters) {
+    if (distanceInMeters < 500) return Math.round(distanceInMeters / 5) * 5;
+    if (distanceInMeters < 1000) return Math.round(distanceInMeters / 10) * 10;
+    if (distanceInMeters < 2000) return Math.round(distanceInMeters / 100) * 100;
+    return Math.round(distanceInMeters / 1000) * 1000;
+}
+
+/** @returns {string} e.g. "345 m", "1200 m", "3 km" */
+export function formatMeters(distanceInMeters) {
+    const rounded = roundDistance(distanceInMeters);
+    return rounded >= 2000 ? `${rounded / 1000} km` : `${rounded} m`;
+}
+
+/**
  * Format distance for display
  * @param {number} distanceInMeters - Distance in meters
  * @returns {string} Formatted distance string
  */
 export function formatDistance(distanceInMeters) {
-    if (distanceInMeters < 500) {
-        // From 0m to 500m, show distance in meters, in steps of 5m
-        return `${Math.round(distanceInMeters / 5) * 5} m away`;
-    } else if (distanceInMeters < 1000) {
-        // From 500m up to 1km, show distance in meters, in steps of 10m
-        return `${Math.round(distanceInMeters / 10) * 10} m away`;
-    } else if (distanceInMeters < 2000) {
-        // From 1km to 2km, show distance in meters, in steps of 100m
-        return `${Math.round(distanceInMeters / 100) * 100} m away`;
-    } else {
-        // From 2km upwards, show distance in km
-        return `${(distanceInMeters / 1000).toFixed(0)} km away`;
-    }
+    return `${formatMeters(distanceInMeters)} away`;
 }
 
 /**

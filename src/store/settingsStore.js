@@ -9,7 +9,7 @@ const useSettingsStore = create(
     persist(
         (set, get) => ({
             // State
-            searchRadius: 5000, // Default 5km in meters
+            searchRadius: 1000, // Default 1 km, in meters (0–5 km)
             // Roulette: last choices, remembered between visits
             rouletteCategory: 'bar',
             rouletteRadius: 500,
@@ -30,7 +30,10 @@ const useSettingsStore = create(
         }),
         {
             name: 'detour-settings', // localStorage key
-            version: 1,
+            version: 2,
+            // v2: radius range became 0–5 km with a 1 km default; reset the old 5 km default
+            migrate: (persistedState, version) =>
+                version < 2 ? { ...persistedState, searchRadius: 1000 } : persistedState,
         }
     )
 );

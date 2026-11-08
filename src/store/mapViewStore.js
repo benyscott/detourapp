@@ -9,6 +9,7 @@ const useMapViewStore = create((set) => ({
     isSearchOpen: false,
     isCafesOpen: false,
     isRouletteOpen: false,
+    isSettingsOpen: false,
     /** True while an itinerary tour is running on `/?tour=` (BAN-135). */
     tourOpen: false,
     /**
@@ -54,6 +55,8 @@ const useMapViewStore = create((set) => ({
             isSearchOpen: false,
             isRouletteOpen: false,
         })),
+
+    setSettingsOpen: (isSettingsOpen) => set({ isSettingsOpen }),
 
     setRouletteOpen: (isRouletteOpen) =>
         set((state) => ({

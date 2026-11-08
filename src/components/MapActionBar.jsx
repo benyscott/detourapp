@@ -3,16 +3,8 @@
 import Link from 'next/link';
 import { Coffee, Compass, Dices, MapPinOff, Menu, Search } from 'lucide-react';
 import MapToggleButton from '@/components/MapToggleButton';
+import SettingsDrawer from '@/components/SettingsDrawer';
 import { Button } from '@/components/ui/button';
-import {
-    Drawer,
-    DrawerClose,
-    DrawerContent,
-    DrawerDescription,
-    DrawerHeader,
-    DrawerTitle,
-    DrawerTrigger,
-} from '@/components/ui/drawer';
 import useMapViewStore from '@/store/mapViewStore';
 import { cn } from '@/lib/utils';
 
@@ -32,6 +24,7 @@ export default function MapActionBar() {
     const toggleSearchOpen = useMapViewStore((s) => s.toggleSearchOpen);
     const toggleCafesOpen = useMapViewStore((s) => s.toggleCafesOpen);
     const toggleRouletteOpen = useMapViewStore((s) => s.toggleRouletteOpen);
+    const setSettingsOpen = useMapViewStore((s) => s.setSettingsOpen);
 
     const handleHeadingBearingToggle = () => {
         const state = useMapViewStore.getState();
@@ -46,37 +39,18 @@ export default function MapActionBar() {
     return (
         <div className="glass-surface relative flex w-full min-h-[3.25rem] items-center gap-2 rounded-2xl px-2.5 py-2 pr-2">
             <div className="flex min-w-0 flex-1 items-center gap-1.5">
-                <Drawer>
-                    <DrawerTrigger asChild>
-                        <Button
-                            type="button"
-                            size="icon"
-                            variant="ghost"
-                            aria-label="Open menu"
-                            className={glassIconBtn}
-                        >
-                            <Menu className="size-5" />
-                        </Button>
-                    </DrawerTrigger>
-                    <DrawerContent>
-                        <DrawerHeader>
-                            <DrawerTitle>Menu</DrawerTitle>
-                            <DrawerDescription>Access app settings and controls.</DrawerDescription>
-                        </DrawerHeader>
-                        <div className="space-y-3 px-4 pb-6">
-                            <DrawerClose asChild>
-                                <Button asChild variant="outline" className="w-full">
-                                    <Link href="/itineraries">Itineraries</Link>
-                                </Button>
-                            </DrawerClose>
-                            <DrawerClose asChild>
-                                <Button asChild variant="outline" className="w-full">
-                                    <Link href="/settings">Settings</Link>
-                                </Button>
-                            </DrawerClose>
-                        </div>
-                    </DrawerContent>
-                </Drawer>
+                {/* The menu button is the settings: it opens the Settings drawer directly */}
+                <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    aria-label="Open settings"
+                    className={glassIconBtn}
+                    onClick={() => setSettingsOpen(true)}
+                >
+                    <Menu className="size-5" />
+                </Button>
+                <SettingsDrawer />
 
                 <MapToggleButton />
 

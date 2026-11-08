@@ -1,26 +1,12 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
-import useSettingsStore from '@/store/settingsStore';
 import { ArrowLeft } from 'lucide-react';
+import SettingsForm from '@/components/SettingsForm';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { Slider } from '@/components/ui/slider';
 
 export default function SettingsPage() {
-    const { searchRadius, setSearchRadius } = useSettingsStore();
-    const [tempRadius, setTempRadius] = useState(searchRadius);
-
-    const handleRadiusChange = ([value]) => {
-        const newRadius = Number(value);
-        setTempRadius(newRadius);
-        setSearchRadius(newRadius);
-    };
-
-    const radiusKm = (tempRadius / 1000).toFixed(1);
-
     return (
         <div className="min-h-screen bg-background px-6 py-8 text-foreground sm:px-8">
             <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
@@ -39,33 +25,8 @@ export default function SettingsPage() {
                 </header>
 
                 <Card className="bg-card/80 backdrop-blur-sm">
-                    <CardHeader>
-                        <CardTitle>Search radius</CardTitle>
-                        <CardDescription>
-                            Limit search results to a radius around your live location.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="flex items-center justify-between">
-                            <Label htmlFor="search-radius">Radius</Label>
-                            <span className="text-2xl font-semibold text-primary">{radiusKm} km</span>
-                        </div>
-                        <Slider
-                            id="search-radius"
-                            min={1000}
-                            max={20000}
-                            step={500}
-                            value={[tempRadius]}
-                            onValueChange={handleRadiusChange}
-                        />
-                        <div className="flex justify-between text-xs text-muted-foreground">
-                            <span>1 km</span>
-                            <span>20 km</span>
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                            Smaller ranges return fewer results, but they are usually more relevant
-                            to where you are right now.
-                        </p>
+                    <CardContent className="pt-6">
+                        <SettingsForm />
                     </CardContent>
                 </Card>
 
