@@ -69,7 +69,7 @@ const MapboxMap = forwardRef(function MapboxMap(
     const [opacity, setOpacity] = useState(0);
     const [userScreenPosition, setUserScreenPosition] = useState(null);
     const [offScreenIndicator, setOffScreenIndicator] = useState(null);
-    const [mapRoseBearingDeg, setMapRoseBearingDeg] = useState(0);
+    const [, setMapRoseBearingDeg] = useState(0);
     const headingEaseProgrammaticRef = useRef(false);
     const prevDestinationRef = useRef(undefined);
     const currentLocation = usePlaceStore((state) => state.currentLocation);
@@ -803,26 +803,6 @@ const MapboxMap = forwardRef(function MapboxMap(
                         >
                             <div id={compassStyles.needleCircle}></div>
                         </div>
-                    </div>
-                </div>
-            ) : null}
-            {mode === 'reveal' && !bearingFollowsHeading ? (
-                <div
-                    className="glass-surface pointer-events-none fixed right-5 top-28 z-[8] flex size-14 flex-col items-center justify-center rounded-full transition-opacity duration-300"
-                    role="status"
-                    aria-live="polite"
-                    aria-label="Map north indicator"
-                >
-                    <div
-                        className="absolute inset-1 rounded-full border border-dashed border-white/40"
-                        aria-hidden
-                    />
-                    <div
-                        className="text-foreground relative text-xs font-bold tracking-tight drop-shadow-sm"
-                        style={{ transform: `rotate(${-mapRoseBearingDeg}deg)` }}
-                        aria-hidden
-                    >
-                        N
                     </div>
                 </div>
             ) : null}

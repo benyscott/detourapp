@@ -1,8 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Coffee, Compass, Dices, MapPinOff, Menu, Search } from 'lucide-react';
-import MapToggleButton from '@/components/MapToggleButton';
+import { Coffee, Dices, MapPinOff, Menu, Search } from 'lucide-react';
 import SettingsDrawer from '@/components/SettingsDrawer';
 import { Button } from '@/components/ui/button';
 import useMapViewStore from '@/store/mapViewStore';
@@ -15,26 +14,14 @@ const glassIconBtn = cn(
 );
 
 export default function MapActionBar() {
-    const mode = useMapViewStore((s) => s.mode);
     const isSearchOpen = useMapViewStore((s) => s.isSearchOpen);
     const isCafesOpen = useMapViewStore((s) => s.isCafesOpen);
     const isRouletteOpen = useMapViewStore((s) => s.isRouletteOpen);
     const tourOpen = useMapViewStore((s) => s.tourOpen);
-    const bearingFollowsHeading = useMapViewStore((s) => s.bearingFollowsHeading);
     const toggleSearchOpen = useMapViewStore((s) => s.toggleSearchOpen);
     const toggleCafesOpen = useMapViewStore((s) => s.toggleCafesOpen);
     const toggleRouletteOpen = useMapViewStore((s) => s.toggleRouletteOpen);
     const setSettingsOpen = useMapViewStore((s) => s.setSettingsOpen);
-
-    const handleHeadingBearingToggle = () => {
-        const state = useMapViewStore.getState();
-        if (state.bearingFollowsHeading) {
-            state.setBearingFollowsHeading(false);
-            return;
-        }
-        state.setBearingFollowsHeading(true);
-        state.pulseHeadingSnap();
-    };
 
     return (
         <div className="glass-surface relative flex w-full min-h-[3.25rem] items-center gap-2 rounded-2xl px-2.5 py-2 pr-2">
@@ -51,29 +38,6 @@ export default function MapActionBar() {
                     <Menu className="size-5" />
                 </Button>
                 <SettingsDrawer />
-
-                <MapToggleButton />
-
-                {mode === 'reveal' ? (
-                    <Button
-                        type="button"
-                        size="icon"
-                        variant="ghost"
-                        aria-label={
-                            bearingFollowsHeading
-                                ? 'Explore map bearing (unlock rotation)'
-                                : 'Snap map bearing to compass heading'
-                        }
-                        aria-pressed={bearingFollowsHeading}
-                        className={cn(
-                            glassIconBtn,
-                            !bearingFollowsHeading && 'ring-2 ring-amber-400/70 dark:ring-amber-400/50'
-                        )}
-                        onClick={handleHeadingBearingToggle}
-                    >
-                        <Compass className="size-5" />
-                    </Button>
-                ) : null}
 
                 {tourOpen ? (
                     <Button

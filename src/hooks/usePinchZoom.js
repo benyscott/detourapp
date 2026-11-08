@@ -6,7 +6,6 @@ import usePlaceStore from '@/store/placeStore';
 const MIN_ZOOM = 14;
 const MAX_ZOOM = 22;
 const FULL_OPACITY_ZOOM = 19;
-const SNAP_THRESHOLD = 0.25;
 const SNAP_DURATION_MS = 150;
 const SENSITIVITY = 3;
 
@@ -197,14 +196,10 @@ export default function usePinchZoom(mapRef) {
 
             debugMap('pinch end', { currentZoom: currentZoom.toFixed(2) });
 
-            if (Math.abs(currentZoom - MAX_ZOOM) < SNAP_THRESHOLD) {
-                debugMap('pinch snap back to zen zoom');
-                animateSnapBack(mapApi);
-                setMode('zen');
-                return;
-            }
-
-            setMode('reveal');
+            // The map is a peek: it only shows while fingers are down. Letting go always
+            // returns to zen, undoing any pan made during the pinch.
+            animateSnapBack(mapApi);
+            setMode('zen');
 
             const loc = usePlaceStore.getState().currentLocation;
             if (loc && typeof mapApi.recenterOnUser === 'function') {
