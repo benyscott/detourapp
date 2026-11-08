@@ -115,6 +115,7 @@ export class PlaceDetails extends Place {
     openingHours = null,
     photos = [],
     reviews = [],
+    streetAddress = null,
   }) {
     super({
       id,
@@ -137,6 +138,7 @@ export class PlaceDetails extends Place {
     this.openingHours = openingHours;
     this.photos = photos;
     this.reviews = reviews;
+    this.streetAddress = streetAddress; // e.g. "Carrer de Blai, 23" — no postcode/city
   }
 
   toJSON() {
@@ -150,6 +152,7 @@ export class PlaceDetails extends Place {
       openingHours: this.openingHours,
       photos: this.photos,
       reviews: this.reviews,
+      streetAddress: this.streetAddress,
     };
   }
 }

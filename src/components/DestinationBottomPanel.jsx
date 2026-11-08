@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Star, X } from 'lucide-react';
 import usePlaceStore from '@/store/placeStore';
+import DestinationSummaryMeta from '@/components/DestinationSummaryMeta';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -132,12 +133,7 @@ export default function DestinationBottomPanel() {
         >
             <div className="flex w-full items-center gap-3">
                 <div className="min-w-0 flex-1">
-                    <p className="text-muted-foreground m-0 text-xs font-medium uppercase tracking-wide">
-                        Quick actions
-                    </p>
-                    <h3 className="text-foreground m-0 max-w-[min(100%,18rem)] truncate text-left text-sm font-semibold md:max-w-none">
-                        {destination.name}
-                    </h3>
+                    <DestinationSummaryMeta />
                     {saveMessage ? (
                         <p className="text-muted-foreground m-0 mt-1 text-xs">{saveMessage}</p>
                     ) : null}

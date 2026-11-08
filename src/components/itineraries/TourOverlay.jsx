@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
 import DestinationInfo from '@/components/DestinationInfo';
-import DestinationSummaryMeta from '@/components/DestinationSummaryMeta';
 import DistanceInfo from '@/components/DistanceInfo';
 import NavigationBar from '@/components/NavigationBar';
 import StopArrivalSheet from '@/components/itineraries/StopArrivalSheet';
@@ -198,10 +197,6 @@ export default function TourOverlay({ itinerary }) {
                     >
                         <ChevronRight />
                     </Button>
-                </div>
-
-                <div className="pointer-events-auto flex w-full justify-center px-2">
-                    <DestinationSummaryMeta />
                 </div>
 
                 <DistanceInfo />

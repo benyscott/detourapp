@@ -33,7 +33,10 @@ const StarRatingRow = ({ rating, className }) => {
     );
 };
 
-export default function DestinationSummaryMeta() {
+/**
+ * Open/closed, rating and street address for the current destination (bottom panel).
+ */
+export default function DestinationSummaryMeta({ className }) {
     const destination = usePlaceStore((s) => s.destination);
     const { details, isLoadingDetails, detailsError } = useDestinationDetails(destination);
 
@@ -65,19 +68,20 @@ export default function DestinationSummaryMeta() {
                 : String(details.userRatingsTotal)
             : null;
 
-    const showAnything = hasRatingSummary || statusEl || isLoadingDetails || detailsError;
+    const streetAddress = details?.streetAddress || null;
+    const showAnything = hasRatingSummary || statusEl || streetAddress || isLoadingDetails || detailsError;
 
     if (!showAnything) {
         return null;
     }
 
     return (
-        <div className="flex max-w-[min(100%,20rem)] flex-col items-center gap-1.5 text-center">
-            <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
+        <div className={cn('flex min-w-0 flex-col items-start gap-1 text-left', className)}>
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                 {statusEl ? <span className="shrink-0">{statusEl}</span> : null}
                 {hasRatingSummary ? (
                     <div
-                        className="text-muted-foreground flex flex-wrap items-center justify-center gap-x-1.5 gap-y-0.5 text-xs tabular-nums"
+                        className="text-muted-foreground flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs tabular-nums"
                         aria-label={
                             reviewCount != null
                                 ? `${Number(details.rating).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} stars, ${reviewCount} reviews`
@@ -97,6 +101,9 @@ export default function DestinationSummaryMeta() {
                     </div>
                 ) : null}
             </div>
+            {streetAddress ? (
+                <p className="text-muted-foreground m-0 max-w-full truncate text-xs">{streetAddress}</p>
+            ) : null}
             {isLoadingDetails ? (
                 <p className="text-muted-foreground m-0 text-[11px]">Loading details…</p>
             ) : null}

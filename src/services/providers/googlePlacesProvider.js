@@ -209,7 +209,7 @@ export class GooglePlacesProvider extends LocationProvider {
     const url = new URL('https://maps.googleapis.com/maps/api/place/details/json');
     url.searchParams.append('place_id', placeId);
     url.searchParams.append('key', this.apiKey);
-    url.searchParams.append('fields', 'name,formatted_address,geometry,types,rating,user_ratings_total,price_level,opening_hours,formatted_phone_number,website,photos');
+    url.searchParams.append('fields', 'name,formatted_address,address_components,geometry,types,rating,user_ratings_total,price_level,opening_hours,formatted_phone_number,website,photos');
 
     if (sessionToken) {
       url.searchParams.append('sessiontoken', sessionToken);
@@ -257,6 +257,7 @@ export class GooglePlacesProvider extends LocationProvider {
                     height: photo.height,
                 })) || [],
                 reviews: result.reviews?.slice(0, 3) || [],
+                streetAddress: this.buildStreetAddress(result),
             });
         } catch (error) {
             console.error('[GooglePlaces] Failed to get details:', error);
@@ -340,6 +341,23 @@ export class GooglePlacesProvider extends LocationProvider {
             console.error('[GooglePlaces] Nearby search failed:', error);
             throw error;
         }
+    }
+
+    /**
+     * Street + number only ("Carrer de Blai, 23" in Spain, "23 Baker St" in the UK).
+     * Number placement follows the country's own convention, read from formatted_address.
+     */
+    buildStreetAddress(result) {
+        const components = result.address_components || [];
+        const find = (type) => components.find((c) => c.types?.includes(type))?.short_name;
+        const route = find('route');
+        const number = find('street_number');
+
+        if (!route) return null;
+        if (!number) return route;
+
+        const numberFirst = (result.formatted_address || '').trim().startsWith(number);
+        return numberFirst ? `${number} ${route}` : `${route}, ${number}`;
     }
 
     /**
