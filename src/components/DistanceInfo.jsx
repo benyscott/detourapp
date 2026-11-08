@@ -14,7 +14,7 @@ export default function DistanceInfo({ className }) {
         <p
             id="distance"
             className={cn(
-                'font-sans m-0 block text-lg font-normal tracking-tight text-foreground',
+                'm-0 block text-foreground',
                 className
             )}
             style={{
