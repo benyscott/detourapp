@@ -7,6 +7,14 @@ const isIOS = typeof window !== 'undefined' &&
     navigator.userAgent.match(/AppleWebKit/);
 
 /**
+ * Permission outcome for this page load. Module scope (not component state) so it survives
+ * client-side navigation: leaving the map for /settings unmounts the hook, and without this
+ * the prompt would show again on return. iOS requires a fresh tap after a full reload anyway.
+ */
+let orientationGrantedThisSession = false;
+let promptDismissedThisSession = false;
+
+/**
  * Hook to handle device orientation and calculate compass needle rotation
  * @returns {object} { needleRotation: number, isActive: boolean, requestPermission: function, needsPermission: boolean }
  */
@@ -64,17 +72,22 @@ export default function useCompass() {
 
         const checkPermissionStatus = () => {
             if (isIOS) {
-                if (typeof DeviceOrientationEvent !== 'undefined' &&
+                if (orientationGrantedThisSession) {
+                    window.addEventListener('deviceorientation', handler, true);
+                    orientationAcceptedRef.current = true;
+                    currentHandlerRef.current = handler;
+                } else if (typeof DeviceOrientationEvent !== 'undefined' &&
                     typeof DeviceOrientationEvent.requestPermission === 'function') {
-                    setNeedsPermission(true);
+                    if (!promptDismissedThisSession) setNeedsPermission(true);
                 } else {
                     window.addEventListener('deviceorientation', handler, true);
                     orientationAcceptedRef.current = true;
                     currentHandlerRef.current = handler;
                 }
             } else {
-                if (typeof DeviceOrientationEvent !== 'undefined' && DeviceOrientationEvent.requestPermission) {
-                    setNeedsPermission(true);
+                if (!orientationGrantedThisSession &&
+                    typeof DeviceOrientationEvent !== 'undefined' && DeviceOrientationEvent.requestPermission) {
+                    if (!promptDismissedThisSession) setNeedsPermission(true);
                 } else {
                     window.addEventListener('deviceorientationabsolute', handler, true);
                     window.addEventListener('deviceorientation', handler, true);
@@ -128,6 +141,7 @@ export default function useCompass() {
         try {
             const response = await DeviceOrientationEvent.requestPermission();
             if (response === 'granted') {
+                orientationGrantedThisSession = true;
                 if (attachListenersFromHandler()) {
                     clearDeviceOrientationIssue();
                     setNeedsPermission(false);
@@ -139,6 +153,7 @@ export default function useCompass() {
                 return false;
             }
             console.warn('[Compass] Orientation permission denied:', response);
+            promptDismissedThisSession = true;
             setDeviceOrientationIssue('denied');
             setNeedsPermission(false);
             return false;
@@ -151,6 +166,7 @@ export default function useCompass() {
     };
 
     const dismissPermissionPrompt = () => {
+        promptDismissedThisSession = true;
         setNeedsPermission(false);
     };
 
