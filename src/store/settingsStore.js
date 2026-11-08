@@ -10,12 +10,18 @@ const useSettingsStore = create(
         (set, get) => ({
             // State
             searchRadius: 5000, // Default 5km in meters
+            // Roulette: last choices, remembered between visits
+            rouletteCategory: 'bar',
+            rouletteRadius: 500,
 
             // Actions
             setSearchRadius: (radius) => {
                 console.log('[Settings] Search radius updated:', radius, 'meters');
                 set({ searchRadius: radius });
             },
+
+            setRouletteCategory: (rouletteCategory) => set({ rouletteCategory }),
+            setRouletteRadius: (rouletteRadius) => set({ rouletteRadius }),
 
             // Helper to get radius in km
             getRadiusKm: () => {

@@ -5,6 +5,7 @@ import MapActionBar from '@/components/MapActionBar';
 import NearbyCafesPanel from '@/components/NearbyCafesPanel';
 import PermissionAlerts from '@/components/PermissionAlerts';
 import PlaceSearch from '@/components/PlaceSearch';
+import RoulettePanel from '@/components/RoulettePanel';
 import useMapViewStore from '@/store/mapViewStore';
 import usePlaceStore from '@/store/placeStore';
 import { cn } from '@/lib/utils';
@@ -12,13 +13,16 @@ import { cn } from '@/lib/utils';
 export default function BottomBar() {
     const isSearchOpen = useMapViewStore((s) => s.isSearchOpen);
     const isCafesOpen = useMapViewStore((s) => s.isCafesOpen);
+    const isRouletteOpen = useMapViewStore((s) => s.isRouletteOpen);
     const destination = usePlaceStore((s) => s.destination);
 
     const activePanel = isSearchOpen
         ? <PlaceSearch />
         : isCafesOpen
           ? <NearbyCafesPanel />
-          : destination
+          : isRouletteOpen
+            ? <RoulettePanel />
+            : destination
             ? <DestinationBottomPanel />
             : null;
 

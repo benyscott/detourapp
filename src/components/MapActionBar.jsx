@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Coffee, Compass, MapPinOff, Menu, Search } from 'lucide-react';
+import { Coffee, Compass, Dices, MapPinOff, Menu, Search } from 'lucide-react';
 import MapToggleButton from '@/components/MapToggleButton';
 import { Button } from '@/components/ui/button';
 import {
@@ -26,10 +26,12 @@ export default function MapActionBar() {
     const mode = useMapViewStore((s) => s.mode);
     const isSearchOpen = useMapViewStore((s) => s.isSearchOpen);
     const isCafesOpen = useMapViewStore((s) => s.isCafesOpen);
+    const isRouletteOpen = useMapViewStore((s) => s.isRouletteOpen);
     const tourOpen = useMapViewStore((s) => s.tourOpen);
     const bearingFollowsHeading = useMapViewStore((s) => s.bearingFollowsHeading);
     const toggleSearchOpen = useMapViewStore((s) => s.toggleSearchOpen);
     const toggleCafesOpen = useMapViewStore((s) => s.toggleCafesOpen);
+    const toggleRouletteOpen = useMapViewStore((s) => s.toggleRouletteOpen);
 
     const handleHeadingBearingToggle = () => {
         const state = useMapViewStore.getState();
@@ -123,6 +125,18 @@ export default function MapActionBar() {
                     onClick={toggleCafesOpen}
                 >
                     <Coffee className="size-5" />
+                </Button>
+
+                <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    aria-label={isRouletteOpen ? 'Close roulette' : 'Open roulette'}
+                    aria-pressed={isRouletteOpen}
+                    className={cn(glassIconBtn, isRouletteOpen && 'bg-black/12 dark:bg-white/15')}
+                    onClick={toggleRouletteOpen}
+                >
+                    <Dices className="size-5" />
                 </Button>
             </div>
 

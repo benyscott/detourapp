@@ -8,6 +8,7 @@ const useMapViewStore = create((set) => ({
     deviceOrientationIssue: null,
     isSearchOpen: false,
     isCafesOpen: false,
+    isRouletteOpen: false,
     /** True while an itinerary tour is running on `/?tour=` (BAN-135). */
     tourOpen: false,
     /**
@@ -32,22 +33,39 @@ const useMapViewStore = create((set) => ({
         set((state) => ({
             isSearchOpen,
             isCafesOpen: isSearchOpen ? false : state.isCafesOpen,
+            isRouletteOpen: isSearchOpen ? false : state.isRouletteOpen,
         })),
     toggleSearchOpen: () =>
         set((state) => ({
             isSearchOpen: !state.isSearchOpen,
             isCafesOpen: false,
+            isRouletteOpen: false,
         })),
 
     setCafesOpen: (isCafesOpen) =>
         set((state) => ({
             isCafesOpen,
             isSearchOpen: isCafesOpen ? false : state.isSearchOpen,
+            isRouletteOpen: isCafesOpen ? false : state.isRouletteOpen,
         })),
     toggleCafesOpen: () =>
         set((state) => ({
             isCafesOpen: !state.isCafesOpen,
             isSearchOpen: false,
+            isRouletteOpen: false,
+        })),
+
+    setRouletteOpen: (isRouletteOpen) =>
+        set((state) => ({
+            isRouletteOpen,
+            isSearchOpen: isRouletteOpen ? false : state.isSearchOpen,
+            isCafesOpen: isRouletteOpen ? false : state.isCafesOpen,
+        })),
+    toggleRouletteOpen: () =>
+        set((state) => ({
+            isRouletteOpen: !state.isRouletteOpen,
+            isSearchOpen: false,
+            isCafesOpen: false,
         })),
 }));
 
