@@ -5,11 +5,13 @@ import { formatMeters, roundDistance } from '@/lib/geoUtils';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 
+const MIN_SEARCH_RADIUS = 100;
 const MAX_SEARCH_RADIUS = 5000;
 
 /** App settings controls, shared by the Settings drawer and the /settings page. */
 export default function SettingsForm() {
-    const { searchRadius, setSearchRadius } = useSettingsStore();
+    const { searchRadius: storedRadius, setSearchRadius } = useSettingsStore();
+    const searchRadius = Math.max(MIN_SEARCH_RADIUS, storedRadius);
 
     return (
         <div className="space-y-3">
@@ -20,7 +22,7 @@ export default function SettingsForm() {
             {/* Linear track; the value snaps to the destination-distance rounding rules */}
             <Slider
                 id="search-radius"
-                min={0}
+                min={MIN_SEARCH_RADIUS}
                 max={MAX_SEARCH_RADIUS}
                 step={5}
                 value={[searchRadius]}
@@ -28,7 +30,7 @@ export default function SettingsForm() {
                 className="py-3"
             />
             <div className="text-muted-foreground flex justify-between text-xs">
-                <span>0 m</span>
+                <span>100 m</span>
                 <span>5 km</span>
             </div>
             <p className="text-muted-foreground m-0 text-sm">

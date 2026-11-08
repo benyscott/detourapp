@@ -9,7 +9,7 @@ const useSettingsStore = create(
     persist(
         (set, get) => ({
             // State
-            searchRadius: 1000, // Default 1 km, in meters (0–5 km)
+            searchRadius: 1000, // Default 1 km, in meters (100 m – 5 km)
             // Roulette: last choices, remembered between visits
             rouletteCategory: 'bar',
             rouletteRadius: 500,
@@ -17,7 +17,7 @@ const useSettingsStore = create(
             // Actions
             setSearchRadius: (radius) => {
                 console.log('[Settings] Search radius updated:', radius, 'meters');
-                set({ searchRadius: radius });
+                set({ searchRadius: Math.max(100, radius) });
             },
 
             setRouletteCategory: (rouletteCategory) => set({ rouletteCategory }),
@@ -30,10 +30,13 @@ const useSettingsStore = create(
         }),
         {
             name: 'detour-settings', // localStorage key
-            version: 2,
+            version: 3,
             // v2: radius range became 0–5 km with a 1 km default; reset the old 5 km default
-            migrate: (persistedState, version) =>
-                version < 2 ? { ...persistedState, searchRadius: 1000 } : persistedState,
+            // v3: minimum radius is 100 m
+            migrate: (persistedState, version) => {
+                if (version < 2) return { ...persistedState, searchRadius: 1000 };
+                return { ...persistedState, searchRadius: Math.max(100, persistedState.searchRadius ?? 1000) };
+            },
         }
     )
 );

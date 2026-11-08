@@ -15,7 +15,7 @@ export const ROULETTE_CATEGORIES = [
 ];
 
 // Slider range for "how far", in metres
-export const ROULETTE_RADIUS = { min: 0, max: 500, step: 5, default: 500 };
+export const ROULETTE_RADIUS = { min: 100, max: 1500, step: 5, default: 500 };
 
 export const clampRadius = (meters) => {
     const value = Number(meters);
