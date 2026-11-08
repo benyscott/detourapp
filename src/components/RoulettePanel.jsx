@@ -208,8 +208,7 @@ export default function RoulettePanel() {
             </div>
 
             <p className="text-muted-foreground m-0 mt-1 text-sm">
-                Can&apos;t decide? Let fate pick. Choose a vibe, choose how far your legs will carry you,
-                and I&apos;ll send you somewhere at random. Don&apos;t like it? Spin again. Fate&apos;s flexible.
+                Can&apos;t decide? Let fate pick at random.
             </p>
 
             <div className="mt-3 flex flex-wrap gap-1.5" role="radiogroup" aria-label="What are you after?">
