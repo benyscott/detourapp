@@ -9,6 +9,15 @@ import { Button } from '@/components/ui/button';
 import { Command, CommandEmpty, CommandItem, CommandList } from '@/components/ui/command';
 import { Input } from '@/components/ui/input';
 
+const MIN_QUERY_LENGTH = 2;
+
+// Groups the keystrokes + final details lookup into one billed Google session.
+// crypto.randomUUID only exists in secure contexts (HTTPS), hence the fallback.
+const newSessionToken = () =>
+    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+
 export default function PlaceSearch() {
     const [searchQuery, setSearchQuery] = useState('');
     const [results, setResults] = useState([]);
@@ -18,6 +27,7 @@ export default function PlaceSearch() {
     const searchInputRef = useRef(null);
     const locationRef = useRef(null);
     const hideResultsTimeoutRef = useRef(null);
+    const sessionTokenRef = useRef(null);
 
     const { setDestination, currentLocation } = usePlaceStore();
     const { searchRadius } = useSettingsStore();
@@ -36,6 +46,7 @@ export default function PlaceSearch() {
 
     useEffect(() => {
         if (!isSearchOpen) {
+            sessionTokenRef.current = null;
             setSearchQuery('');
             setResults([]);
             setShowResults(false);
@@ -68,7 +79,7 @@ export default function PlaceSearch() {
             return;
         }
 
-        if (searchQuery.trim().length < 3) {
+        if (searchQuery.trim().length < MIN_QUERY_LENGTH) {
             console.log('[PlaceSearch] Query too short, waiting for more characters...');
             setShowResults(false);
             return;
@@ -79,9 +90,14 @@ export default function PlaceSearch() {
             try {
                 console.log('[PlaceSearch] Searching for:', searchQuery, 'with radius:', searchRadius);
 
+                if (!sessionTokenRef.current) {
+                    sessionTokenRef.current = newSessionToken();
+                }
+
                 const params = new URLSearchParams({
                     q: searchQuery,
                     radius: searchRadius.toString(),
+                    sessionToken: sessionTokenRef.current,
                 });
 
                 const searchLocation = locationRef.current;
@@ -90,7 +106,7 @@ export default function PlaceSearch() {
                     params.append('lng', searchLocation.longitude.toString());
                 }
 
-                const response = await fetch(`/api/places?${params.toString()}`);
+                const response = await fetch(`/api/places/autocomplete?${params.toString()}`);
                 if (!response.ok) {
                     const errorData = await response.json().catch(() => ({}));
                     throw new Error(errorData.error || 'Search failed');
@@ -113,19 +129,48 @@ export default function PlaceSearch() {
             } finally {
                 setIsSearching(false);
             }
-        }, 600);
+        }, 300);
     }, [searchQuery, searchRadius, isSearchOpen]);
 
-    const handleSelectPlace = (place) => {
+    const handleSelectPlace = async (place) => {
         if (hideResultsTimeoutRef.current !== null) {
             window.clearTimeout(hideResultsTimeoutRef.current);
             hideResultsTimeoutRef.current = null;
         }
         console.log('[PlaceSearch] Place selected:', place.name);
+
+        let { latitude, longitude } = place;
+
+        // Autocomplete predictions have no coordinates: resolve them, closing the billing session
+        if (latitude == null || longitude == null) {
+            try {
+                const params = new URLSearchParams({ placeId: place.id });
+                if (sessionTokenRef.current) {
+                    params.append('sessionToken', sessionTokenRef.current);
+                }
+                const response = await fetch(`/api/place-details?${params.toString()}`);
+                if (!response.ok) {
+                    throw new Error('Place details failed');
+                }
+                const { result } = await response.json();
+                latitude = result?.latitude;
+                longitude = result?.longitude;
+            } catch (error) {
+                console.error('[PlaceSearch] Could not resolve place location:', error);
+                return;
+            } finally {
+                sessionTokenRef.current = null;
+            }
+        }
+
+        if (latitude == null || longitude == null) {
+            return;
+        }
+
         setDestination({
             id: place.id,
-            latitude: place.latitude,
-            longitude: place.longitude,
+            latitude,
+            longitude,
             name: place.name,
             provider: place.provider,
             category: place.category,
@@ -137,14 +182,14 @@ export default function PlaceSearch() {
         setSearchOpen(false);
     };
 
-    const shouldShowPopover = isSearchOpen && showResults && searchQuery.trim().length >= 3;
+    const shouldShowPopover = isSearchOpen && showResults && searchQuery.trim().length >= MIN_QUERY_LENGTH;
 
     const handleSearchFocus = () => {
         if (hideResultsTimeoutRef.current !== null) {
             window.clearTimeout(hideResultsTimeoutRef.current);
             hideResultsTimeoutRef.current = null;
         }
-        if (searchQuery.trim().length >= 3) {
+        if (searchQuery.trim().length >= MIN_QUERY_LENGTH) {
             setShowResults(true);
         }
     };

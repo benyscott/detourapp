@@ -133,6 +133,70 @@ export class GooglePlacesProvider extends LocationProvider {
     }
 
     /**
+     * Type-ahead search using Place Autocomplete (same engine as the vanilla app's
+     * google.maps.places.Autocomplete). Matches partial words ("Ar" → "Arrocería …"),
+     * unlike Text Search which needs whole words.
+     * Predictions carry no coordinates: fetch details on selection with the same sessionToken
+     * (Google then bills the keystrokes + details as one session).
+     */
+    async autocomplete(input, options = {}) {
+        const { latitude, longitude, radius = 5000, countryCode, sessionToken } = options;
+
+        if (!this.apiKey) {
+            throw new Error('Google Places API key not configured');
+        }
+
+        if (latitude && longitude && radius <= 0) {
+            return [];
+        }
+
+        const url = new URL('https://maps.googleapis.com/maps/api/place/autocomplete/json');
+        url.searchParams.append('input', input);
+        url.searchParams.append('key', this.apiKey);
+
+        if (sessionToken) {
+            url.searchParams.append('sessiontoken', sessionToken);
+        }
+
+        if (latitude && longitude) {
+            // Only return places inside the search radius, like the vanilla app's strictBounds
+            url.searchParams.append('location', `${latitude},${longitude}`);
+            url.searchParams.append('radius', radius.toString());
+            url.searchParams.append('strictbounds', 'true');
+            url.searchParams.append('origin', `${latitude},${longitude}`);
+        } else if (countryCode) {
+            url.searchParams.append('components', `country:${countryCode.toLowerCase()}`);
+        }
+
+        const response = await fetch(url.toString());
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+        }
+
+        const data = await response.json();
+
+        if (data.status === 'ZERO_RESULTS') {
+            return [];
+        }
+        if (data.status !== 'OK') {
+            throw new Error(`Google Places API error: ${data.status} - ${data.error_message || 'Unknown error'}`);
+        }
+
+        return (data.predictions || []).map((prediction) => new Place({
+            id: prediction.place_id,
+            name: prediction.structured_formatting?.main_text || prediction.description,
+            address: prediction.structured_formatting?.secondary_text || '',
+            latitude: null,
+            longitude: null,
+            category: prediction.types?.[0] || 'place',
+            types: prediction.types || [],
+            distance: typeof prediction.distance_meters === 'number' ? prediction.distance_meters : null,
+            providerName: 'google',
+            rawData: prediction,
+        }));
+    }
+
+    /**
      * Get place details using Place Details API
      */
   async getPlaceDetails(placeId, options = {}) {
