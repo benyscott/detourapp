@@ -8,6 +8,7 @@ import useMapViewStore from '@/store/mapViewStore';
 import { Button } from '@/components/ui/button';
 import { Command, CommandEmpty, CommandItem, CommandList } from '@/components/ui/command';
 import { Input } from '@/components/ui/input';
+import { NEARBY_CATEGORIES } from '@/lib/nearbyCategories';
 
 const MIN_QUERY_LENGTH = 2;
 
@@ -33,6 +34,7 @@ export default function PlaceSearch() {
     const { searchRadius } = useSettingsStore();
     const isSearchOpen = useMapViewStore((s) => s.isSearchOpen);
     const setSearchOpen = useMapViewStore((s) => s.setSearchOpen);
+    const setNearbyCategory = useMapViewStore((s) => s.setNearbyCategory);
 
     useEffect(() => {
         locationRef.current = currentLocation;
@@ -240,6 +242,27 @@ export default function PlaceSearch() {
                             </Button>
                         </div>
                     </form>
+
+                    {/* Quick categories: type straight away, or tap one of these */}
+                    <div
+                        className="-mx-3 mt-2 flex gap-2 overflow-x-auto px-3 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                        role="list"
+                        aria-label="Search nearby by category"
+                    >
+                        {NEARBY_CATEGORIES.map(({ id, label, icon: Icon }) => (
+                            <button
+                                key={id}
+                                type="button"
+                                role="listitem"
+                                onMouseDown={(e) => e.preventDefault()}
+                                onClick={() => setNearbyCategory(id)}
+                                className="glass-surface flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium text-foreground"
+                            >
+                                <Icon className="size-4" aria-hidden />
+                                {label}
+                            </button>
+                        ))}
+                    </div>
                     {shouldShowPopover && (
                         <div
                             role="presentation"

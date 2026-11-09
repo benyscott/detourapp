@@ -7,7 +7,8 @@ const useMapViewStore = create((set) => ({
     /** Set after explicit DeviceOrientationEvent.requestPermission outcome; null when none. */
     deviceOrientationIssue: null,
     isSearchOpen: false,
-    isCafesOpen: false,
+    /** Category chip tapped under the search bar ('coffee', 'restaurant', …); null when closed */
+    nearbyCategory: null,
     isRouletteOpen: false,
     isSettingsOpen: false,
     /** True while an itinerary tour is running on `/?tour=` (BAN-135). */
@@ -33,27 +34,22 @@ const useMapViewStore = create((set) => ({
     setSearchOpen: (isSearchOpen) =>
         set((state) => ({
             isSearchOpen,
-            isCafesOpen: isSearchOpen ? false : state.isCafesOpen,
+            nearbyCategory: isSearchOpen ? null : state.nearbyCategory,
             isRouletteOpen: isSearchOpen ? false : state.isRouletteOpen,
         })),
     toggleSearchOpen: () =>
         set((state) => ({
             isSearchOpen: !state.isSearchOpen,
-            isCafesOpen: false,
+            nearbyCategory: null,
             isRouletteOpen: false,
         })),
 
-    setCafesOpen: (isCafesOpen) =>
+    /** Open the nearby list for a category (closes search), or pass null to close it */
+    setNearbyCategory: (nearbyCategory) =>
         set((state) => ({
-            isCafesOpen,
-            isSearchOpen: isCafesOpen ? false : state.isSearchOpen,
-            isRouletteOpen: isCafesOpen ? false : state.isRouletteOpen,
-        })),
-    toggleCafesOpen: () =>
-        set((state) => ({
-            isCafesOpen: !state.isCafesOpen,
-            isSearchOpen: false,
-            isRouletteOpen: false,
+            nearbyCategory,
+            isSearchOpen: nearbyCategory ? false : state.isSearchOpen,
+            isRouletteOpen: nearbyCategory ? false : state.isRouletteOpen,
         })),
 
     setSettingsOpen: (isSettingsOpen) => set({ isSettingsOpen }),
@@ -62,13 +58,13 @@ const useMapViewStore = create((set) => ({
         set((state) => ({
             isRouletteOpen,
             isSearchOpen: isRouletteOpen ? false : state.isSearchOpen,
-            isCafesOpen: isRouletteOpen ? false : state.isCafesOpen,
+            nearbyCategory: isRouletteOpen ? null : state.nearbyCategory,
         })),
     toggleRouletteOpen: () =>
         set((state) => ({
             isRouletteOpen: !state.isRouletteOpen,
             isSearchOpen: false,
-            isCafesOpen: false,
+            nearbyCategory: null,
         })),
 }));
 

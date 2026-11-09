@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Coffee, Dices, MapPinOff, Menu, Search } from 'lucide-react';
+import { Dices, MapPinOff, Menu, Search } from 'lucide-react';
 import SettingsDrawer from '@/components/SettingsDrawer';
 import { Button } from '@/components/ui/button';
 import useMapViewStore from '@/store/mapViewStore';
@@ -15,11 +15,9 @@ const glassIconBtn = cn(
 
 export default function MapActionBar() {
     const isSearchOpen = useMapViewStore((s) => s.isSearchOpen);
-    const isCafesOpen = useMapViewStore((s) => s.isCafesOpen);
     const isRouletteOpen = useMapViewStore((s) => s.isRouletteOpen);
     const tourOpen = useMapViewStore((s) => s.tourOpen);
     const toggleSearchOpen = useMapViewStore((s) => s.toggleSearchOpen);
-    const toggleCafesOpen = useMapViewStore((s) => s.toggleCafesOpen);
     const toggleRouletteOpen = useMapViewStore((s) => s.toggleRouletteOpen);
     const setSettingsOpen = useMapViewStore((s) => s.setSettingsOpen);
 
@@ -52,18 +50,6 @@ export default function MapActionBar() {
                         </Link>
                     </Button>
                 ) : null}
-
-                <Button
-                    type="button"
-                    size="icon"
-                    variant="ghost"
-                    aria-label={isCafesOpen ? 'Hide nearby cafes' : 'Show nearby cafes'}
-                    aria-pressed={isCafesOpen}
-                    className={cn(glassIconBtn, isCafesOpen && 'bg-black/12 dark:bg-white/15')}
-                    onClick={toggleCafesOpen}
-                >
-                    <Coffee className="size-5" />
-                </Button>
 
                 <Button
                     type="button"

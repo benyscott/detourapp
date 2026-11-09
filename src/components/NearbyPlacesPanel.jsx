@@ -1,18 +1,23 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Coffee, MapPin, X } from 'lucide-react';
+import { MapPin, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { resolveGeolocationErrorMessage } from '@/lib/geolocationMessages';
+import { getNearbyCategory } from '@/lib/nearbyCategories';
 import usePlaceStore from '@/store/placeStore';
 import useSettingsStore from '@/store/settingsStore';
 import useMapViewStore from '@/store/mapViewStore';
 
-export default function NearbyCafesPanel() {
-    const isCafesOpen = useMapViewStore((s) => s.isCafesOpen);
-    const setCafesOpen = useMapViewStore((s) => s.setCafesOpen);
+/** Places of one category around you, opened from a chip under the search bar. */
+export default function NearbyPlacesPanel() {
+    const nearbyCategory = useMapViewStore((s) => s.nearbyCategory);
+    const setNearbyCategory = useMapViewStore((s) => s.setNearbyCategory);
+    const category = getNearbyCategory(nearbyCategory);
+    const isOpen = Boolean(category);
+    const type = category?.type;
 
     const currentLocation = usePlaceStore((s) => s.currentLocation);
     const geolocationError = usePlaceStore((s) => s.geolocationError);
@@ -57,15 +62,15 @@ export default function NearbyCafesPanel() {
     };
 
     useEffect(() => {
-        if (!isCafesOpen) {
+        if (!isOpen) {
             clearRecommendations();
             setResults([]);
             setError(null);
         }
-    }, [isCafesOpen, clearRecommendations]);
+    }, [isOpen, clearRecommendations]);
 
     useEffect(() => {
-        if (!isCafesOpen || !currentLocation) {
+        if (!isOpen || !currentLocation) {
             return;
         }
 
@@ -80,12 +85,12 @@ export default function NearbyCafesPanel() {
                     lat: currentLocation.latitude.toString(),
                     lng: currentLocation.longitude.toString(),
                     radius: searchRadius.toString(),
-                    type: 'cafe',
+                    type,
                 });
 
                 const response = await fetch(`/api/nearby?${params.toString()}`);
                 if (!response.ok) {
-                    throw new Error('Could not load cafes nearby');
+                    throw new Error('Could not load places nearby');
                 }
 
                 const data = await response.json();
@@ -97,7 +102,7 @@ export default function NearbyCafesPanel() {
                 }
             } catch (err) {
                 if (!cancelled) {
-                    setError(err instanceof Error ? err.message : 'Could not load cafes');
+                    setError(err instanceof Error ? err.message : 'Could not load places');
                     clearRecommendations();
                 }
             } finally {
@@ -112,10 +117,10 @@ export default function NearbyCafesPanel() {
         return () => {
             cancelled = true;
         };
-    }, [isCafesOpen, currentLocation, searchRadius, setRecommendations, clearRecommendations]);
+    }, [isOpen, type, currentLocation, searchRadius, setRecommendations, clearRecommendations]);
 
     const handleClose = () => {
-        setCafesOpen(false);
+        setNearbyCategory(null);
     };
 
     const handleSelectPlace = (place) => {
@@ -124,28 +129,33 @@ export default function NearbyCafesPanel() {
             latitude: place.latitude,
             longitude: place.longitude,
             name: place.name,
+            provider: place.provider ?? 'google',
+            category: place.category,
+            address: place.place_name ?? null,
         });
-        setCafesOpen(false);
+        setNearbyCategory(null);
     };
 
-    if (!isCafesOpen) {
+    if (!category) {
         return null;
     }
 
+    const Icon = category.icon;
+
     return (
-        <div className="w-full max-h-[min(40vh,320px)]" aria-label="Cafes nearby">
+        <div className="w-full max-h-[min(40vh,320px)]" aria-label={`${category.label} nearby`}>
             <Card className="bg-card/95 flex max-h-[min(40vh,320px)] flex-col overflow-hidden shadow-lg backdrop-blur-md">
                 <CardHeader className="flex shrink-0 flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="flex items-center gap-2 text-base">
-                        <Coffee className="size-5" aria-hidden />
-                        Cafes nearby
+                        <Icon className="size-5" aria-hidden />
+                        {category.label} nearby
                     </CardTitle>
                     <Button
                         type="button"
                         variant="ghost"
                         size="icon-sm"
                         onClick={handleClose}
-                        aria-label="Close cafes list"
+                        aria-label={`Close ${category.label.toLowerCase()} list`}
                     >
                         <X />
                     </Button>
@@ -173,14 +183,14 @@ export default function NearbyCafesPanel() {
                         </div>
                     )}
                     {currentLocation && isLoading && (
-                        <p className="text-muted-foreground py-8 text-center text-sm">Loading cafes…</p>
+                        <p className="text-muted-foreground py-8 text-center text-sm">Looking around…</p>
                     )}
                     {currentLocation && error && !isLoading && (
                         <p className="text-destructive py-4 text-center text-sm">{error}</p>
                     )}
                     {currentLocation && !isLoading && !error && results.length === 0 && (
                         <p className="text-muted-foreground py-8 text-center text-sm">
-                            No cafes found in this area.
+                            No {category.label.toLowerCase()} found within your search radius.
                         </p>
                     )}
                     {currentLocation && !isLoading && !error && results.length > 0 && (
