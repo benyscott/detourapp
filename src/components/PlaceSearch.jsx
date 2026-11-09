@@ -42,7 +42,7 @@ export default function PlaceSearch() {
 
     useEffect(() => {
         if (isSearchOpen && searchInputRef.current) {
-            searchInputRef.current.focus();
+            searchInputRef.current.focus({ preventScroll: true });
         }
     }, [isSearchOpen]);
 
