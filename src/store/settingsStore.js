@@ -13,6 +13,7 @@ const useSettingsStore = create(
             // Roulette: last choices, remembered between visits
             rouletteCategory: 'bar',
             rouletteRadius: 500,
+            rouletteMinRating: 0,
 
             // Actions
             setSearchRadius: (radius) => {
@@ -22,6 +23,7 @@ const useSettingsStore = create(
 
             setRouletteCategory: (rouletteCategory) => set({ rouletteCategory }),
             setRouletteRadius: (rouletteRadius) => set({ rouletteRadius }),
+            setRouletteMinRating: (rouletteMinRating) => set({ rouletteMinRating }),
 
             // Helper to get radius in km
             getRadiusKm: () => {

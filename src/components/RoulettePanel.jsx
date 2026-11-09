@@ -1,16 +1,19 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Dices, X } from 'lucide-react';
+import { Dices, Star, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { formatDistance } from '@/lib/geoUtils';
 import {
     clampRadius,
+    filterByRating,
     formatRadius,
     getRouletteCategory,
+    nextWiderRadius,
     pickRandomPlace,
     ROULETTE_CATEGORIES,
+    ROULETTE_MIN_RATINGS,
     ROULETTE_RADIUS,
 } from '@/lib/roulette';
 import useMapViewStore from '@/store/mapViewStore';
@@ -62,10 +65,21 @@ export default function RoulettePanel() {
     const currentLocation = usePlaceStore((s) => s.currentLocation);
     const geolocationError = usePlaceStore((s) => s.geolocationError);
     const setDestination = usePlaceStore((s) => s.setDestination);
-    const { rouletteCategory, rouletteRadius, setRouletteCategory, setRouletteRadius } = useSettingsStore();
+    const {
+        rouletteCategory,
+        rouletteRadius,
+        rouletteMinRating,
+        setRouletteCategory,
+        setRouletteRadius,
+        setRouletteMinRating,
+    } = useSettingsStore();
 
     const category = getRouletteCategory(rouletteCategory);
-    const radius = clampRadius(rouletteRadius);
+    const sliderRadius = clampRadius(rouletteRadius);
+    const minRating = ROULETTE_MIN_RATINGS.includes(rouletteMinRating) ? rouletteMinRating : 0;
+    // Set when "Try 3 km" widens the search past the slider; cleared when the slider/category changes
+    const [expandedRadius, setExpandedRadius] = useState(null);
+    const radius = expandedRadius ?? sliderRadius;
 
     // idle | loading | spinning | result | empty | error
     const [phase, setPhase] = useState('idle');
@@ -98,12 +112,20 @@ export default function RoulettePanel() {
     const handleCategory = (id) => {
         if (id === category.id) return;
         setRouletteCategory(id);
+        setExpandedRadius(null);
         clearStaleMessage();
     };
 
     const handleRadius = ([value]) => {
         if (value === radius) return;
         setRouletteRadius(value);
+        setExpandedRadius(null);
+        clearStaleMessage();
+    };
+
+    const handleMinRating = (value) => {
+        if (value === minRating) return;
+        setRouletteMinRating(value);
         clearStaleMessage();
     };
 
@@ -126,7 +148,8 @@ export default function RoulettePanel() {
             return;
         }
 
-        const draw = pickRandomPlace(pool.places, pool.seenIds);
+        const candidates = filterByRating(pool.places, minRating);
+        const draw = pickRandomPlace(candidates, pool.seenIds);
         if (!draw) {
             setPhase('empty');
             return;
@@ -139,7 +162,7 @@ export default function RoulettePanel() {
             setPhase('result');
         };
 
-        if (pool.places.length < 2 || prefersReducedMotion()) {
+        if (candidates.length < 2 || prefersReducedMotion()) {
             reveal();
             return;
         }
@@ -154,8 +177,8 @@ export default function RoulettePanel() {
                 window.setTimeout(() => {
                     let next;
                     do {
-                        next = pool.places[Math.floor(Math.random() * pool.places.length)].name;
-                    } while (next === previous && pool.places.length > 1);
+                        next = candidates[Math.floor(Math.random() * candidates.length)].name;
+                    } while (next === previous && candidates.length > 1);
                     previous = next;
                     setShownName(next);
                 }, elapsed)
@@ -167,7 +190,12 @@ export default function RoulettePanel() {
     const handleTryWider = () => {
         const wider = widerRadius;
         if (!wider) return;
-        setRouletteRadius(wider);
+        if (wider <= ROULETTE_RADIUS.max) {
+            setRouletteRadius(wider);
+            setExpandedRadius(null);
+        } else {
+            setExpandedRadius(wider);
+        }
         spin(wider);
     };
 
@@ -185,7 +213,7 @@ export default function RoulettePanel() {
         setRouletteOpen(false);
     };
 
-    const widerRadius = radius < ROULETTE_RADIUS.max ? clampRadius(Math.max(radius * 2, radius + 50)) : null;
+    const widerRadius = nextWiderRadius(radius);
     const isBusy = phase === 'loading' || phase === 'spinning';
 
     return (
@@ -238,7 +266,7 @@ export default function RoulettePanel() {
                     min={ROULETTE_RADIUS.min}
                     max={ROULETTE_RADIUS.max}
                     step={ROULETTE_RADIUS.step}
-                    value={[radius]}
+                    value={[sliderRadius]}
                     onValueChange={handleRadius}
                     disabled={isBusy}
                     className="flex-1"
@@ -246,6 +274,34 @@ export default function RoulettePanel() {
                 <span className="text-muted-foreground w-14 shrink-0 text-right text-xs tabular-nums">
                     {formatRadius(radius)}
                 </span>
+            </div>
+
+            <div className="mb-1 flex gap-1.5" role="radiogroup" aria-label="Minimum rating">
+                {ROULETTE_MIN_RATINGS.map((value) => (
+                    <button
+                        key={value}
+                        type="button"
+                        role="radio"
+                        aria-checked={value === minRating}
+                        disabled={isBusy}
+                        onClick={() => handleMinRating(value)}
+                        className={cn(
+                            'flex flex-1 items-center justify-center gap-1 rounded-full border py-1 text-xs tabular-nums transition-colors disabled:opacity-60',
+                            value === minRating
+                                ? 'border-foreground bg-foreground text-background'
+                                : 'border-border bg-background/60 text-foreground'
+                        )}
+                    >
+                        {value === 0 ? (
+                            'Any rating'
+                        ) : (
+                            <>
+                                <Star className="size-3 fill-current" aria-hidden />
+                                {value}+
+                            </>
+                        )}
+                    </button>
+                ))}
             </div>
 
             <div
@@ -278,9 +334,16 @@ export default function RoulettePanel() {
                         >
                             {shownName}
                         </p>
-                        {phase === 'result' && pick?.distance != null && (
-                            <p className="text-muted-foreground m-0 mt-1 text-xs tabular-nums">
-                                {formatDistance(pick.distance)}
+                        {phase === 'result' && pick && (pick.distance != null || pick.rating != null) && (
+                            <p className="text-muted-foreground m-0 mt-1 flex items-center justify-center gap-1 text-xs tabular-nums">
+                                {pick.rating != null && (
+                                    <>
+                                        <Star className="size-3 fill-amber-400 text-amber-400" aria-hidden />
+                                        {pick.rating.toFixed(1)}
+                                        {pick.distance != null && ' · '}
+                                    </>
+                                )}
+                                {pick.distance != null && formatDistance(pick.distance)}
                             </p>
                         )}
                     </>
@@ -288,7 +351,8 @@ export default function RoulettePanel() {
 
                 {phase === 'empty' && (
                     <p className="text-muted-foreground m-0 text-sm">
-                        No {category.openNow ? 'open ' : ''}{category.noun} within {formatRadius(radius)}.
+                        No {category.openNow ? 'open ' : ''}{category.noun}
+                        {minRating > 0 ? ` rated ${minRating}+` : ''} within {formatRadius(radius)}.
                     </p>
                 )}
 

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getLocationService } from '@/services/locationServiceFactory';
-import { clampRadius, getRouletteCategory } from '@/lib/roulette';
+import { clampRadius, getRouletteCategory, ROULETTE_RADIUS } from '@/lib/roulette';
 
 /**
  * Roulette pool (BAN-158): every open place of a category within the radius.
@@ -10,7 +10,7 @@ export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const lat = Number.parseFloat(searchParams.get('lat'));
   const lng = Number.parseFloat(searchParams.get('lng'));
-  const radius = clampRadius(searchParams.get('radius'));
+  const radius = clampRadius(searchParams.get('radius'), ROULETTE_RADIUS.expandMax);
   const category = getRouletteCategory(searchParams.get('category'));
 
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
@@ -37,7 +37,12 @@ export async function GET(request) {
     return NextResponse.json({
       category: category.id,
       radius,
-      results: places.map((place) => place.toJSON()),
+      // Rating comes with Nearby Search results at no extra cost; the panel filters on it
+      results: places.map((place) => ({
+        ...place.toJSON(),
+        rating: place.rawData?.rating ?? null,
+        ratingCount: place.rawData?.user_ratings_total ?? null,
+      })),
     });
   } catch (error) {
     console.error('[API] Roulette pool failed:', error);
