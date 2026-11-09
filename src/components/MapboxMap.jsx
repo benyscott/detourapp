@@ -19,8 +19,10 @@ const MODE_TWEEN_MS = 300;
 const RETURN_TO_ZEN_MS = 220;
 /** Subtle horizon tilt (BAN-136); keep readable ground detail. */
 const MAP_PITCH = 36;
-/** At REVEAL_ZOOM, ~25vw with 33vw compass (see Compass.module.css). */
-const COMPASS_MIN_SCALE = 0.14;
+/** The circle scales exactly with the map, but never below a dot this size (px) so you can still find yourself. */
+const COMPASS_MIN_DOT_PX = 12;
+/** Must match #compass width in Compass.module.css */
+const COMPASS_WIDTH_VW = 0.45;
 const OFFSCREEN_INSET_PX = 16;
 const OFFSCREEN_INDICATOR_SIZE_PX = 24;
 
@@ -90,8 +92,11 @@ const MapboxMap = forwardRef(function MapboxMap(
     const currentZoom = useMapViewStore((state) => state.currentZoom);
 
     const compassScale = useMemo(() => {
-        const zoomProgress = clamp((currentZoom - REVEAL_ZOOM) / (ZEN_ZOOM - REVEAL_ZOOM), 0, 1);
-        return COMPASS_MIN_SCALE + zoomProgress * (1 - COMPASS_MIN_SCALE);
+        // One zoom level halves the map, so the circle halves too: it stays the same size on the ground
+        const mapScale = Math.pow(2, Math.min(0, currentZoom - ZEN_ZOOM));
+        const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 390;
+        const minScale = COMPASS_MIN_DOT_PX / (viewportWidth * COMPASS_WIDTH_VW);
+        return Math.max(minScale, mapScale);
     }, [currentZoom]);
 
     const needleRotation =
@@ -849,7 +854,6 @@ const MapboxMap = forwardRef(function MapboxMap(
                         left: userScreenPosition.x,
                         top: userScreenPosition.y,
                         transform: `translate(-50%, -50%) scale(${compassScale})`,
-                        transition: `transform ${MODE_TWEEN_MS}ms cubic-bezier(0.33, 1, 0.68, 1)`,
                         zIndex: 5,
                         pointerEvents: 'none',
                     }}
