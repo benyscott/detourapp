@@ -269,7 +269,7 @@ export class GooglePlacesProvider extends LocationProvider {
      * Search nearby places using Nearby Search API
      */
     async searchNearby(options = {}) {
-        const { latitude, longitude, radius = 5000, type, countryCode } = options;
+        const { latitude, longitude, radius = 5000, type, countryCode, openNow = false } = options;
 
         if (!this.apiKey) {
             throw new Error('Google Places API key not configured');
@@ -288,6 +288,10 @@ export class GooglePlacesProvider extends LocationProvider {
 
         if (type) {
             url.searchParams.append('type', type);
+        }
+
+        if (openNow) {
+            url.searchParams.append('opennow', 'true');
         }
 
         try {

@@ -3,8 +3,7 @@
 import { useEffect, useState } from 'react';
 import { MapPin, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { formatMeters } from '@/lib/geoUtils';
 import { resolveGeolocationErrorMessage } from '@/lib/geolocationMessages';
 import { getNearbyCategory } from '@/lib/nearbyCategories';
 import usePlaceStore from '@/store/placeStore';
@@ -16,21 +15,70 @@ export default function NearbyPlacesPanel() {
     const nearbyCategory = useMapViewStore((s) => s.nearbyCategory);
     const setNearbyCategory = useMapViewStore((s) => s.setNearbyCategory);
     const category = getNearbyCategory(nearbyCategory);
-    const isOpen = Boolean(category);
-    const type = category?.type;
 
-    const currentLocation = usePlaceStore((s) => s.currentLocation);
+    const hasLocation = usePlaceStore((s) => Boolean(s.currentLocation));
     const geolocationError = usePlaceStore((s) => s.geolocationError);
     const setDestination = usePlaceStore((s) => s.setDestination);
     const setRecommendations = usePlaceStore((s) => s.setRecommendations);
     const clearRecommendations = usePlaceStore((s) => s.clearRecommendations);
-
     const { searchRadius } = useSettingsStore();
 
     const [results, setResults] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
     const [isRequestingLocation, setIsRequestingLocation] = useState(false);
+
+    // Map markers belong to this list: clear them when the panel goes away
+    useEffect(() => () => clearRecommendations(), [clearRecommendations]);
+
+    // Search once per category / radius, from where you are when it opens. GPS updates while
+    // the list is open don't refetch (that made the list reload every second).
+    useEffect(() => {
+        if (!category || !hasLocation) {
+            return undefined;
+        }
+
+        let cancelled = false;
+        const load = async () => {
+            const { latitude, longitude } = usePlaceStore.getState().currentLocation;
+            setIsLoading(true);
+            setError(null);
+
+            try {
+                const params = new URLSearchParams({
+                    lat: latitude.toString(),
+                    lng: longitude.toString(),
+                    radius: searchRadius.toString(),
+                    type: category.type,
+                    openNow: String(category.openNow),
+                });
+                const response = await fetch(`/api/nearby?${params.toString()}`);
+                if (!response.ok) {
+                    throw new Error('Could not load places nearby');
+                }
+                const list = (await response.json()).results || [];
+                if (!cancelled) {
+                    setResults(list);
+                    setRecommendations(list);
+                }
+            } catch (err) {
+                if (!cancelled) {
+                    setResults([]);
+                    setError(err instanceof Error ? err.message : 'Could not load places');
+                    clearRecommendations();
+                }
+            } finally {
+                if (!cancelled) {
+                    setIsLoading(false);
+                }
+            }
+        };
+
+        load();
+        return () => {
+            cancelled = true;
+        };
+    }, [category, hasLocation, searchRadius, setRecommendations, clearRecommendations]);
 
     const handleRequestLocation = () => {
         if (typeof navigator === 'undefined' || !navigator.geolocation) {
@@ -61,68 +109,6 @@ export default function NearbyPlacesPanel() {
         );
     };
 
-    useEffect(() => {
-        if (!isOpen) {
-            clearRecommendations();
-            setResults([]);
-            setError(null);
-        }
-    }, [isOpen, clearRecommendations]);
-
-    useEffect(() => {
-        if (!isOpen || !currentLocation) {
-            return;
-        }
-
-        let cancelled = false;
-        const load = async () => {
-            setIsLoading(true);
-            setError(null);
-            setResults([]);
-
-            try {
-                const params = new URLSearchParams({
-                    lat: currentLocation.latitude.toString(),
-                    lng: currentLocation.longitude.toString(),
-                    radius: searchRadius.toString(),
-                    type,
-                });
-
-                const response = await fetch(`/api/nearby?${params.toString()}`);
-                if (!response.ok) {
-                    throw new Error('Could not load places nearby');
-                }
-
-                const data = await response.json();
-                const list = data.results || [];
-
-                if (!cancelled) {
-                    setResults(list);
-                    setRecommendations(list);
-                }
-            } catch (err) {
-                if (!cancelled) {
-                    setError(err instanceof Error ? err.message : 'Could not load places');
-                    clearRecommendations();
-                }
-            } finally {
-                if (!cancelled) {
-                    setIsLoading(false);
-                }
-            }
-        };
-
-        load();
-
-        return () => {
-            cancelled = true;
-        };
-    }, [isOpen, type, currentLocation, searchRadius, setRecommendations, clearRecommendations]);
-
-    const handleClose = () => {
-        setNearbyCategory(null);
-    };
-
     const handleSelectPlace = (place) => {
         setDestination({
             id: place.id,
@@ -141,89 +127,84 @@ export default function NearbyPlacesPanel() {
     }
 
     const Icon = category.icon;
+    const noun = category.label.toLowerCase();
 
     return (
-        <div className="w-full max-h-[min(40vh,320px)]" aria-label={`${category.label} nearby`}>
-            <Card className="bg-card/95 flex max-h-[min(40vh,320px)] flex-col overflow-hidden shadow-lg backdrop-blur-md">
-                <CardHeader className="flex shrink-0 flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="flex items-center gap-2 text-base">
-                        <Icon className="size-5" aria-hidden />
-                        {category.label} nearby
-                    </CardTitle>
+        <section className="glass-surface w-full max-w-md rounded-2xl px-4 py-3" aria-label={`${category.label} nearby`}>
+            <div className="flex items-center justify-between">
+                <h3 className="m-0 flex items-center gap-1.5 text-base font-semibold">
+                    <Icon className="size-4" aria-hidden />
+                    {category.label}
+                    {category.openNow ? <span className="text-muted-foreground font-sans text-xs font-normal">· open now</span> : null}
+                </h3>
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    className="rounded-full"
+                    onClick={() => setNearbyCategory(null)}
+                    aria-label={`Close ${noun} list`}
+                >
+                    <X className="size-4" />
+                </Button>
+            </div>
+
+            {!hasLocation && (
+                <div className="flex flex-col items-center gap-3 py-4">
+                    <p className="text-muted-foreground m-0 text-center text-sm">
+                        {geolocationError ?? 'Waiting for your location…'}
+                    </p>
                     <Button
                         type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={handleClose}
-                        aria-label={`Close ${category.label.toLowerCase()} list`}
+                        variant="secondary"
+                        size="sm"
+                        className="gap-1.5 rounded-full"
+                        disabled={isRequestingLocation || (typeof navigator !== 'undefined' && !navigator.geolocation)}
+                        onClick={handleRequestLocation}
                     >
-                        <X />
+                        <MapPin className="size-4" aria-hidden />
+                        {isRequestingLocation ? 'Requesting…' : 'Use my location'}
                     </Button>
-                </CardHeader>
-                <CardContent className="min-h-0 flex-1 pt-0">
-                    {!currentLocation && (
-                        <div className="flex flex-col items-center gap-3 py-4">
-                            <p className="text-muted-foreground px-1 text-center text-sm">
-                                {geolocationError ?? 'Waiting for your location…'}
-                            </p>
-                            <Button
+                </div>
+            )}
+
+            {hasLocation && isLoading && results.length === 0 && (
+                <p className="text-muted-foreground m-0 py-6 text-center text-sm">Looking around…</p>
+            )}
+            {hasLocation && error && !isLoading && (
+                <p className="text-destructive m-0 py-4 text-center text-sm">{error}</p>
+            )}
+            {hasLocation && !isLoading && !error && results.length === 0 && (
+                <p className="text-muted-foreground m-0 py-6 text-center text-sm">
+                    No {category.openNow ? 'open ' : ''}{noun} within {formatMeters(searchRadius)}.
+                </p>
+            )}
+
+            {results.length > 0 && (
+                <ul className="m-0 mt-1 max-h-[45vh] list-none divide-y divide-border/60 overflow-y-auto overscroll-contain p-0 [-webkit-overflow-scrolling:touch]">
+                    {results.map((place) => (
+                        <li key={place.id}>
+                            <button
                                 type="button"
-                                variant="secondary"
-                                size="sm"
-                                className="gap-1.5"
-                                disabled={
-                                    isRequestingLocation ||
-                                    (typeof navigator !== 'undefined' && !navigator.geolocation)
-                                }
-                                onClick={handleRequestLocation}
+                                onClick={() => handleSelectPlace(place)}
+                                className="flex w-full items-center gap-3 py-2.5 text-left"
                             >
-                                <MapPin className="size-4" aria-hidden />
-                                {isRequestingLocation ? 'Requesting…' : 'Use my location'}
-                            </Button>
-                        </div>
-                    )}
-                    {currentLocation && isLoading && (
-                        <p className="text-muted-foreground py-8 text-center text-sm">Looking around…</p>
-                    )}
-                    {currentLocation && error && !isLoading && (
-                        <p className="text-destructive py-4 text-center text-sm">{error}</p>
-                    )}
-                    {currentLocation && !isLoading && !error && results.length === 0 && (
-                        <p className="text-muted-foreground py-8 text-center text-sm">
-                            No {category.label.toLowerCase()} found within your search radius.
-                        </p>
-                    )}
-                    {currentLocation && !isLoading && !error && results.length > 0 && (
-                        <ScrollArea className="max-h-[min(35vh,280px)] pr-2">
-                            <div className="space-y-2 pb-2">
-                                {results.map((place) => (
-                                    <Button
-                                        key={place.id}
-                                        type="button"
-                                        variant="ghost"
-                                        className="h-auto w-full justify-start rounded-lg border px-3 py-3 text-left"
-                                        onClick={() => handleSelectPlace(place)}
-                                    >
-                                        <div className="flex w-full flex-col gap-1">
-                                            <span className="font-medium">{place.name}</span>
-                                            {place.place_name && place.place_name !== place.name && (
-                                                <span className="text-muted-foreground text-xs">
-                                                    {place.place_name}
-                                                </span>
-                                            )}
-                                            {place.distance != null && (
-                                                <span className="text-primary text-xs">
-                                                    {(place.distance / 1000).toFixed(1)} km away
-                                                </span>
-                                            )}
-                                        </div>
-                                    </Button>
-                                ))}
-                            </div>
-                        </ScrollArea>
-                    )}
-                </CardContent>
-            </Card>
-        </div>
+                                <span className="min-w-0 flex-1">
+                                    <span className="block truncate text-sm font-medium">{place.name}</span>
+                                    {place.place_name && place.place_name !== place.name && (
+                                        <span className="text-muted-foreground block truncate text-xs">{place.place_name}</span>
+                                    )}
+                                </span>
+                                {place.distance != null && (
+                                    <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
+                                        {formatMeters(place.distance)}
+                                    </span>
+                                )}
+                            </button>
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </section>
     );
 }
