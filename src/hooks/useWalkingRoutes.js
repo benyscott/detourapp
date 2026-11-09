@@ -1,72 +1,90 @@
 import { useEffect, useRef, useState } from 'react';
 import usePlaceStore from '@/store/placeStore';
 import { fetchWalkingRoutes } from '@/lib/mapboxDirections';
-import { calculateDistance } from '@/lib/geoUtils';
 
-const ROUTE_REQUEST_DEBOUNCE_MS = 250;
-const MIN_REFETCH_M = 25;
+/** How far from every suggested route you can drift before we re-route from where you are */
+const OFF_ROUTE_M = 30;
+/** Never re-route more often than this, so GPS jitter can't spam the Directions API */
+const MIN_REROUTE_INTERVAL_MS = 8000;
+
+const toRad = (deg) => (deg * Math.PI) / 180;
+
+/** Distance in metres from a point to a LineString (local flat projection; fine at street scale). */
+function distanceToLine(point, coordinates) {
+    if (!coordinates?.length) return Infinity;
+    const cosLat = Math.cos(toRad(point.latitude));
+    const R = 6371e3;
+    const project = ([lng, lat]) => ({
+        x: toRad(lng - point.longitude) * cosLat * R,
+        y: toRad(lat - point.latitude) * R,
+    });
+
+    let best = Infinity;
+    let prev = project(coordinates[0]);
+    best = Math.hypot(prev.x, prev.y);
+    for (let i = 1; i < coordinates.length; i += 1) {
+        const next = project(coordinates[i]);
+        const dx = next.x - prev.x;
+        const dy = next.y - prev.y;
+        const lengthSq = dx * dx + dy * dy;
+        const t = lengthSq > 0 ? Math.max(0, Math.min(1, -(prev.x * dx + prev.y * dy) / lengthSq)) : 0;
+        best = Math.min(best, Math.hypot(prev.x + t * dx, prev.y + t * dy));
+        prev = next;
+    }
+    return best;
+}
+
+const isOffAllRoutes = (location, routes) =>
+    routes.length > 0 &&
+    routes.every((route) => distanceToLine(location, route.geometry?.coordinates) > OFF_ROUTE_M);
 
 export default function useWalkingRoutes() {
-    const [routes, setRoutes] = useState([]);
+    // Routes are tagged with the destination they belong to, so a new destination never
+    // shows the previous route while its own is loading
+    const [routeState, setRouteState] = useState({ key: null, routes: [] });
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
-    const lastFetchOriginRef = useRef(null);
+    const routesRef = useRef([]);
     const lastDestinationRef = useRef(null);
-    const inflightControllerRef = useRef(null);
-    const inflightTimeoutRef = useRef(null);
+    const lastFetchAtRef = useRef(0);
+    const inflightRef = useRef(null); // { controller, destinationKey }
     const currentLocation = usePlaceStore((state) => state.currentLocation);
     const destination = usePlaceStore((state) => state.destination);
     const hasRouteInputs = Boolean(currentLocation && destination);
-
-    const cancelInflightWork = () => {
-        if (inflightTimeoutRef.current !== null) {
-            window.clearTimeout(inflightTimeoutRef.current);
-            inflightTimeoutRef.current = null;
-        }
-        if (inflightControllerRef.current) {
-            inflightControllerRef.current.abort();
-            inflightControllerRef.current = null;
-        }
-    };
+    const currentKey = destination ? `${destination.id}|${destination.latitude}|${destination.longitude}` : null;
 
     useEffect(() => {
         if (!hasRouteInputs) {
-            cancelInflightWork();
-            lastFetchOriginRef.current = null;
+            inflightRef.current?.controller.abort();
+            inflightRef.current = null;
             lastDestinationRef.current = null;
-            setRoutes([]);
-            setIsLoading(false);
-            setError(null);
+            routesRef.current = [];
             return;
         }
 
-        const lastDestination = lastDestinationRef.current;
-        const destinationChanged =
-            !lastDestination ||
-            lastDestination.id !== destination.id ||
-            lastDestination.latitude !== destination.latitude ||
-            lastDestination.longitude !== destination.longitude;
-        const lastOrigin = lastFetchOriginRef.current;
-        const movedDistance = lastOrigin
-            ? calculateDistance(
-                lastOrigin.latitude,
-                lastOrigin.longitude,
-                currentLocation.latitude,
-                currentLocation.longitude
-            )
-            : Infinity;
-        const shouldFetch = destinationChanged || !lastOrigin || movedDistance >= MIN_REFETCH_M;
+        const destinationKey = currentKey;
+        const destinationChanged = lastDestinationRef.current !== destinationKey;
 
-        if (!shouldFetch) {
-            return;
+        if (destinationChanged) {
+            // A new destination always wins: drop any request for the old one
+            inflightRef.current?.controller.abort();
+            inflightRef.current = null;
+            routesRef.current = [];
+        } else {
+            // Same destination: only re-route when you've left every suggested route.
+            // Never cancel a request that's already on its way (GPS updates ~1/s would starve it).
+            if (inflightRef.current) return;
+            // (No routes yet means the last request failed: retry after the interval too.)
+            if (routesRef.current.length > 0 && !isOffAllRoutes(currentLocation, routesRef.current)) return;
+            if (Date.now() - lastFetchAtRef.current < MIN_REROUTE_INTERVAL_MS) return;
         }
 
-        cancelInflightWork();
-        const abortController = new AbortController();
-        inflightControllerRef.current = abortController;
+        const controller = new AbortController();
+        inflightRef.current = { controller, destinationKey };
+        lastDestinationRef.current = destinationKey;
+        lastFetchAtRef.current = Date.now();
 
-        inflightTimeoutRef.current = window.setTimeout(async () => {
-            inflightTimeoutRef.current = null;
+        (async () => {
             try {
                 setIsLoading(true);
                 setError(null);
@@ -74,37 +92,27 @@ export default function useWalkingRoutes() {
                     origin: currentLocation,
                     destination,
                     accessToken: process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN,
-                    signal: abortController.signal,
+                    signal: controller.signal,
                 });
-
-                setRoutes(result.routes || []);
-                lastFetchOriginRef.current = currentLocation;
-                lastDestinationRef.current = destination;
+                routesRef.current = result.routes || [];
+                setRouteState({ key: destinationKey, routes: routesRef.current });
             } catch (routeError) {
-                if (routeError?.name === 'AbortError') {
-                    return;
-                }
-                setRoutes([]);
+                if (routeError?.name === 'AbortError') return;
                 setError(routeError);
             } finally {
-                setIsLoading(false);
-                if (inflightControllerRef.current === abortController) {
-                    inflightControllerRef.current = null;
+                if (inflightRef.current?.controller === controller) {
+                    inflightRef.current = null;
+                    setIsLoading(false);
                 }
             }
-        }, ROUTE_REQUEST_DEBOUNCE_MS);
-    }, [currentLocation, destination, hasRouteInputs]);
+        })();
+    }, [currentLocation, destination, hasRouteInputs, currentKey]);
 
-    useEffect(() => {
-        return () => {
-            cancelInflightWork();
-        };
-    }, []);
+    useEffect(() => () => inflightRef.current?.controller.abort(), []);
 
     if (!hasRouteInputs) {
         return { routes: [], isLoading: false, error: null };
     }
 
-    return { routes, isLoading, error };
+    return { routes: routeState.key === currentKey ? routeState.routes : [], isLoading, error };
 }
-
