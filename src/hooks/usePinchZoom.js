@@ -65,6 +65,9 @@ export default function usePinchZoom(mapRef) {
         debugMap('usePinchZoom: window listeners attached');
 
         let isPinching = false;
+        // Lifting one of the two fingers keeps the map zoomed out; it returns to zen
+        // only once every finger is off the screen.
+        let isHolding = false;
         let initialDistance = 0;
         let initialZoom = MAX_ZOOM;
         let frameRequested = false;
@@ -108,6 +111,9 @@ export default function usePinchZoom(mapRef) {
                 debugMap('pinch touchstart: map ref not ready yet (two fingers detected)');
                 return;
             }
+
+            // Second finger back down while holding: keep pinching from the current zoom
+            isHolding = false;
 
             mapApi.cancelReturnToZen?.();
             isPinching = true;
@@ -176,7 +182,7 @@ export default function usePinchZoom(mapRef) {
                 return;
             }
 
-            if (!isPinching) {
+            if (!isPinching && !isHolding) {
                 return;
             }
 
@@ -187,6 +193,14 @@ export default function usePinchZoom(mapRef) {
             isPinching = false;
             moveLogCounter = 0;
             previousMidpoint = null;
+
+            if (event.touches.length === 1) {
+                isHolding = true;
+                debugMap('pinch hold: one finger still down, staying zoomed out');
+                return;
+            }
+
+            isHolding = false;
 
             const mapApi = mapRef.current;
             if (!mapApi) {
