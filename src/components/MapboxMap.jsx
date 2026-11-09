@@ -15,6 +15,8 @@ const ROUTE_SOURCE_PREFIX = 'route-source-';
 const REVEAL_ZOOM = 17;
 const ZEN_ZOOM = 22;
 const MODE_TWEEN_MS = 300;
+/** Pinch release → back to zen (zoom + recentre + fade in one tween) */
+const RETURN_TO_ZEN_MS = 220;
 /** Subtle horizon tilt (BAN-136); keep readable ground detail. */
 const MAP_PITCH = 36;
 /** At REVEAL_ZOOM, ~25vw with 33vw compass (see Compass.module.css). */
@@ -71,6 +73,12 @@ const MapboxMap = forwardRef(function MapboxMap(
     const [offScreenIndicator, setOffScreenIndicator] = useState(null);
     const [, setMapRoseBearingDeg] = useState(0);
     const headingEaseProgrammaticRef = useRef(false);
+    /**
+     * Timer id while the pinch-release tween runs. Any direct setZoom/setBearing/jumpTo
+     * (GPS updates, compass heading) would cancel a Mapbox easeTo mid-way and leave the
+     * user off-centre, so those updates are held until the tween ends.
+     */
+    const returnToZenTimerRef = useRef(null);
     const prevDestinationRef = useRef(undefined);
     const currentLocation = usePlaceStore((state) => state.currentLocation);
     const angle = usePlaceStore((state) => state.angle);
@@ -218,7 +226,7 @@ const MapboxMap = forwardRef(function MapboxMap(
             return;
         }
 
-        if (mode === 'zen') {
+        if (mode === 'zen' && returnToZenTimerRef.current === null) {
             map.jumpTo({
                 center: [currentLocation.longitude, currentLocation.latitude],
                 pitch: MAP_PITCH,
@@ -333,7 +341,7 @@ const MapboxMap = forwardRef(function MapboxMap(
         }
 
         const follow = mode === 'zen' || bearingFollowsHeading;
-        if (!follow) {
+        if (!follow || returnToZenTimerRef.current !== null) {
             return;
         }
 
@@ -650,6 +658,59 @@ const MapboxMap = forwardRef(function MapboxMap(
     }, [destination]);
 
     useImperativeHandle(ref, () => ({
+        /**
+         * Pinch released: zoom back in, recentre on the user and fade the map out as ONE
+         * animation, then land exactly on the latest position and heading.
+         */
+        returnToZen: () => {
+            const map = mapRef.current;
+            if (!map) {
+                return;
+            }
+
+            if (returnToZenTimerRef.current !== null) {
+                window.clearTimeout(returnToZenTimerRef.current);
+            }
+
+            const loc = usePlaceStore.getState().currentLocation;
+            const heading = useMapViewStore.getState().deviceHeading;
+
+            map.stop();
+            map.easeTo({
+                ...(loc ? { center: [loc.longitude, loc.latitude] } : {}),
+                ...(heading != null ? { bearing: heading } : {}),
+                zoom: ZEN_ZOOM,
+                pitch: MAP_PITCH,
+                duration: RETURN_TO_ZEN_MS,
+                easing: (t) => 1 - Math.pow(1 - t, 3),
+                essential: true,
+            });
+            animateOpacityTo(0, RETURN_TO_ZEN_MS);
+
+            returnToZenTimerRef.current = window.setTimeout(() => {
+                returnToZenTimerRef.current = null;
+                const latestLoc = usePlaceStore.getState().currentLocation;
+                const latestHeading = useMapViewStore.getState().deviceHeading;
+                map.stop();
+                map.jumpTo({
+                    ...(latestLoc ? { center: [latestLoc.longitude, latestLoc.latitude] } : {}),
+                    ...(latestHeading != null ? { bearing: latestHeading } : {}),
+                    zoom: ZEN_ZOOM,
+                    pitch: MAP_PITCH,
+                });
+                setOpacityValue(0);
+                useMapViewStore.getState().setCurrentZoom(ZEN_ZOOM);
+            }, RETURN_TO_ZEN_MS + 32);
+        },
+        /** A new pinch started before the return finished: hand control back to the pinch. */
+        cancelReturnToZen: () => {
+            if (returnToZenTimerRef.current === null) {
+                return;
+            }
+            window.clearTimeout(returnToZenTimerRef.current);
+            returnToZenTimerRef.current = null;
+            mapRef.current?.stop();
+        },
         setCenter: (latitude, longitude) => {
             if (!mapRef.current) {
                 return;

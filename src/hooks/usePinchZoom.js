@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
 import { debugMap } from '@/lib/debugMap';
 import useMapViewStore from '@/store/mapViewStore';
-import usePlaceStore from '@/store/placeStore';
 
 const MIN_ZOOM = 14;
 const MAX_ZOOM = 22;
@@ -110,6 +109,7 @@ export default function usePinchZoom(mapRef) {
                 return;
             }
 
+            mapApi.cancelReturnToZen?.();
             isPinching = true;
             initialDistance = getTouchDistance(event.touches);
             previousMidpoint = getTouchMidpoint(event.touches);
@@ -197,14 +197,13 @@ export default function usePinchZoom(mapRef) {
             debugMap('pinch end', { currentZoom: currentZoom.toFixed(2) });
 
             // The map is a peek: it only shows while fingers are down. Letting go always
-            // returns to zen, undoing any pan made during the pinch.
-            animateSnapBack(mapApi);
-            setMode('zen');
-
-            const loc = usePlaceStore.getState().currentLocation;
-            if (loc && typeof mapApi.recenterOnUser === 'function') {
-                mapApi.recenterOnUser();
+            // returns to zen, centred on the user, undoing any pan made during the pinch.
+            if (typeof mapApi.returnToZen === 'function') {
+                mapApi.returnToZen();
+            } else {
+                animateSnapBack(mapApi);
             }
+            setMode('zen');
         };
 
         window.addEventListener('touchstart', handleTouchStart, { passive: true });
