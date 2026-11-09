@@ -348,6 +348,70 @@ export class GooglePlacesProvider extends LocationProvider {
     }
 
     /**
+     * The 20 closest places of a type, with rating and opening hours, in ONE request
+     * (Places API New, ranked by distance). Hours come as weekly periods so the client can
+     * filter "open now / open at 20:00 Friday / any time" without searching again.
+     */
+    async searchNearbyDetailed({ latitude, longitude, radius, type }) {
+        if (!this.apiKey) {
+            throw new Error('Google Places API key not configured');
+        }
+
+        const response = await fetch('https://places.googleapis.com/v1/places:searchNearby', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Goog-Api-Key': this.apiKey,
+                'X-Goog-FieldMask': [
+                    'places.id',
+                    'places.displayName',
+                    'places.shortFormattedAddress',
+                    'places.location',
+                    'places.rating',
+                    'places.userRatingCount',
+                    'places.businessStatus',
+                    'places.currentOpeningHours.openNow',
+                    'places.regularOpeningHours.periods',
+                ].join(','),
+            },
+            body: JSON.stringify({
+                includedTypes: [type],
+                maxResultCount: 20,
+                rankPreference: 'DISTANCE',
+                locationRestriction: {
+                    circle: { center: { latitude, longitude }, radius },
+                },
+            }),
+        });
+
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            throw new Error(
+                `Google Places (New) nearby error: ${data.error?.status || response.status} - ${data.error?.message || ''}`
+            );
+        }
+
+        return (data.places || [])
+            .filter((place) => !place.businessStatus || place.businessStatus === 'OPERATIONAL')
+            .map((place) => ({
+                id: place.id,
+                name: place.displayName?.text ?? '',
+                place_name: place.shortFormattedAddress ?? '',
+                latitude: place.location?.latitude,
+                longitude: place.location?.longitude,
+                category: type,
+                provider: 'google',
+                rating: place.rating ?? null,
+                ratingCount: place.userRatingCount ?? null,
+                openNow: place.currentOpeningHours?.openNow ?? null,
+                periods: place.regularOpeningHours?.periods ?? null,
+                distance: place.location
+                    ? this.calculateDistance(latitude, longitude, place.location.latitude, place.location.longitude)
+                    : null,
+            }));
+    }
+
+    /**
      * Every matching place within the radius, for the roulette (BAN-158).
      * Nearby Search returns at most 20 per page, ranked by prominence, so taking one page
      * would bias the draw toward famous places. We follow up to `maxPages` pages (Google
