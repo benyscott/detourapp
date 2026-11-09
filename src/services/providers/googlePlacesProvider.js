@@ -133,6 +133,70 @@ export class GooglePlacesProvider extends LocationProvider {
     }
 
     /**
+     * Type-ahead search using Place Autocomplete (same engine as the vanilla app's
+     * google.maps.places.Autocomplete). Matches partial words ("Ar" → "Arrocería …"),
+     * unlike Text Search which needs whole words.
+     * Predictions carry no coordinates: fetch details on selection with the same sessionToken
+     * (Google then bills the keystrokes + details as one session).
+     */
+    async autocomplete(input, options = {}) {
+        const { latitude, longitude, radius = 5000, countryCode, sessionToken } = options;
+
+        if (!this.apiKey) {
+            throw new Error('Google Places API key not configured');
+        }
+
+        if (latitude && longitude && radius <= 0) {
+            return [];
+        }
+
+        const url = new URL('https://maps.googleapis.com/maps/api/place/autocomplete/json');
+        url.searchParams.append('input', input);
+        url.searchParams.append('key', this.apiKey);
+
+        if (sessionToken) {
+            url.searchParams.append('sessiontoken', sessionToken);
+        }
+
+        if (latitude && longitude) {
+            // Only return places inside the search radius, like the vanilla app's strictBounds
+            url.searchParams.append('location', `${latitude},${longitude}`);
+            url.searchParams.append('radius', radius.toString());
+            url.searchParams.append('strictbounds', 'true');
+            url.searchParams.append('origin', `${latitude},${longitude}`);
+        } else if (countryCode) {
+            url.searchParams.append('components', `country:${countryCode.toLowerCase()}`);
+        }
+
+        const response = await fetch(url.toString());
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+        }
+
+        const data = await response.json();
+
+        if (data.status === 'ZERO_RESULTS') {
+            return [];
+        }
+        if (data.status !== 'OK') {
+            throw new Error(`Google Places API error: ${data.status} - ${data.error_message || 'Unknown error'}`);
+        }
+
+        return (data.predictions || []).map((prediction) => new Place({
+            id: prediction.place_id,
+            name: prediction.structured_formatting?.main_text || prediction.description,
+            address: prediction.structured_formatting?.secondary_text || '',
+            latitude: null,
+            longitude: null,
+            category: prediction.types?.[0] || 'place',
+            types: prediction.types || [],
+            distance: typeof prediction.distance_meters === 'number' ? prediction.distance_meters : null,
+            providerName: 'google',
+            rawData: prediction,
+        }));
+    }
+
+    /**
      * Get place details using Place Details API
      */
   async getPlaceDetails(placeId, options = {}) {
@@ -145,7 +209,7 @@ export class GooglePlacesProvider extends LocationProvider {
     const url = new URL('https://maps.googleapis.com/maps/api/place/details/json');
     url.searchParams.append('place_id', placeId);
     url.searchParams.append('key', this.apiKey);
-    url.searchParams.append('fields', 'name,formatted_address,geometry,types,rating,user_ratings_total,price_level,opening_hours,formatted_phone_number,website,photos');
+    url.searchParams.append('fields', 'name,formatted_address,address_components,geometry,types,rating,user_ratings_total,price_level,opening_hours,formatted_phone_number,website,photos');
 
     if (sessionToken) {
       url.searchParams.append('sessiontoken', sessionToken);
@@ -193,6 +257,7 @@ export class GooglePlacesProvider extends LocationProvider {
                     height: photo.height,
                 })) || [],
                 reviews: result.reviews?.slice(0, 3) || [],
+                streetAddress: this.buildStreetAddress(result),
             });
         } catch (error) {
             console.error('[GooglePlaces] Failed to get details:', error);
@@ -204,7 +269,7 @@ export class GooglePlacesProvider extends LocationProvider {
      * Search nearby places using Nearby Search API
      */
     async searchNearby(options = {}) {
-        const { latitude, longitude, radius = 5000, type, countryCode } = options;
+        const { latitude, longitude, radius = 5000, type, countryCode, openNow = false } = options;
 
         if (!this.apiKey) {
             throw new Error('Google Places API key not configured');
@@ -223,6 +288,10 @@ export class GooglePlacesProvider extends LocationProvider {
 
         if (type) {
             url.searchParams.append('type', type);
+        }
+
+        if (openNow) {
+            url.searchParams.append('opennow', 'true');
         }
 
         try {
@@ -276,6 +345,162 @@ export class GooglePlacesProvider extends LocationProvider {
             console.error('[GooglePlaces] Nearby search failed:', error);
             throw error;
         }
+    }
+
+    /**
+     * The 20 closest places of a type, with rating and opening hours, in ONE request
+     * (Places API New, ranked by distance). Hours come as weekly periods so the client can
+     * filter "open now / open at 20:00 Friday / any time" without searching again.
+     */
+    async searchNearbyDetailed({ latitude, longitude, radius, type }) {
+        if (!this.apiKey) {
+            throw new Error('Google Places API key not configured');
+        }
+
+        const response = await fetch('https://places.googleapis.com/v1/places:searchNearby', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Goog-Api-Key': this.apiKey,
+                'X-Goog-FieldMask': [
+                    'places.id',
+                    'places.displayName',
+                    'places.shortFormattedAddress',
+                    'places.location',
+                    'places.rating',
+                    'places.userRatingCount',
+                    'places.businessStatus',
+                    'places.currentOpeningHours.openNow',
+                    'places.regularOpeningHours.periods',
+                ].join(','),
+            },
+            body: JSON.stringify({
+                includedTypes: [type],
+                maxResultCount: 20,
+                rankPreference: 'DISTANCE',
+                locationRestriction: {
+                    circle: { center: { latitude, longitude }, radius },
+                },
+            }),
+        });
+
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            throw new Error(
+                `Google Places (New) nearby error: ${data.error?.status || response.status} - ${data.error?.message || ''}`
+            );
+        }
+
+        return (data.places || [])
+            .filter((place) => !place.businessStatus || place.businessStatus === 'OPERATIONAL')
+            .map((place) => ({
+                id: place.id,
+                name: place.displayName?.text ?? '',
+                place_name: place.shortFormattedAddress ?? '',
+                latitude: place.location?.latitude,
+                longitude: place.location?.longitude,
+                category: type,
+                provider: 'google',
+                rating: place.rating ?? null,
+                ratingCount: place.userRatingCount ?? null,
+                openNow: place.currentOpeningHours?.openNow ?? null,
+                periods: place.regularOpeningHours?.periods ?? null,
+                distance: place.location
+                    ? this.calculateDistance(latitude, longitude, place.location.latitude, place.location.longitude)
+                    : null,
+            }));
+    }
+
+    /**
+     * Every matching place within the radius, for the roulette (BAN-158).
+     * Nearby Search returns at most 20 per page, ranked by prominence, so taking one page
+     * would bias the draw toward famous places. We follow up to `maxPages` pages (Google
+     * caps it at 3 = 60 places) and keep only places strictly inside the radius.
+     */
+    async searchNearbyPool({ latitude, longitude, radius, type, openNow = true, maxPages = 3 }) {
+        if (!this.apiKey) {
+            throw new Error('Google Places API key not configured');
+        }
+
+        const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+        const results = [];
+        let pageToken = null;
+
+        for (let page = 0; page < maxPages; page += 1) {
+            const url = new URL('https://maps.googleapis.com/maps/api/place/nearbysearch/json');
+            url.searchParams.append('key', this.apiKey);
+
+            if (pageToken) {
+                url.searchParams.append('pagetoken', pageToken);
+            } else {
+                url.searchParams.append('location', `${latitude},${longitude}`);
+                url.searchParams.append('radius', String(radius));
+                url.searchParams.append('type', type);
+                if (openNow) url.searchParams.append('opennow', 'true');
+            }
+
+            let data;
+            // A fresh next_page_token takes a moment to become valid on Google's side
+            for (let attempt = 0; attempt < 4; attempt += 1) {
+                if (pageToken) await sleep(attempt === 0 ? 1500 : 1000);
+                const response = await fetch(url.toString());
+                data = await response.json();
+                if (!(pageToken && data.status === 'INVALID_REQUEST')) break;
+            }
+
+            if (data.status === 'ZERO_RESULTS') break;
+            if (data.status !== 'OK') {
+                if (page > 0) break; // keep what we have from earlier pages
+                throw new Error(`Google Places Nearby API error: ${data.status} - ${data.error_message || ''}`);
+            }
+
+            results.push(...(data.results || []));
+            pageToken = data.next_page_token;
+            if (!pageToken) break;
+        }
+
+        const seen = new Set();
+        return results
+            .filter((result) => {
+                if (seen.has(result.place_id)) return false;
+                seen.add(result.place_id);
+                return !result.business_status || result.business_status === 'OPERATIONAL';
+            })
+            .map((result) => {
+                const location = result.geometry?.location;
+                return new Place({
+                    id: result.place_id,
+                    name: result.name,
+                    address: result.vicinity || '',
+                    latitude: location?.lat,
+                    longitude: location?.lng,
+                    category: type,
+                    types: result.types || [],
+                    distance: location
+                        ? this.calculateDistance(latitude, longitude, location.lat, location.lng)
+                        : null,
+                    providerName: 'google',
+                    rawData: result,
+                });
+            })
+            .filter((place) => place.distance != null && place.distance <= radius);
+    }
+
+    /**
+     * Street + number only ("Carrer de Blai, 23" in Spain, "23 Baker St" in the UK).
+     * Number placement follows the country's own convention, read from formatted_address.
+     */
+    buildStreetAddress(result) {
+        const components = result.address_components || [];
+        const find = (type) => components.find((c) => c.types?.includes(type))?.short_name;
+        const route = find('route');
+        const number = find('street_number');
+
+        if (!route) return null;
+        if (!number) return route;
+
+        const numberFirst = (result.formatted_address || '').trim().startsWith(number);
+        return numberFirst ? `${number} ${route}` : `${route}, ${number}`;
     }
 
     /**

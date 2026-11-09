@@ -12,6 +12,7 @@ export async function GET(request) {
     const lng = searchParams.get('lng');
     const radius = searchParams.get('radius');
     const type = searchParams.get('type'); // e.g., 'restaurant', 'cafe', 'bar'
+    const openNow = searchParams.get('openNow') === 'true';
 
     if (!lat || !lng) {
         return NextResponse.json(
@@ -39,6 +40,7 @@ export async function GET(request) {
             longitude: parseFloat(lng),
             radius: radius ? parseInt(radius) : 5000, // Default 5km
             type,
+            openNow,
             countryCode: userCountryCode,
         });
 

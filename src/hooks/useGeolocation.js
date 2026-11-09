@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { resolveGeolocationErrorMessage } from '@/lib/geolocationMessages';
 import usePlaceStore from '@/store/placeStore';
 
 /**
@@ -12,7 +13,9 @@ export default function useGeolocation(isTracking = false) {
     const [isWatching, setIsWatching] = useState(false);
     const watchIdRef = useRef(null);
 
-    const { setCurrentLocation } = usePlaceStore();
+    const setCurrentLocation = usePlaceStore((state) => state.setCurrentLocation);
+    const setGeolocationError = usePlaceStore((state) => state.setGeolocationError);
+    const geolocationRetryKey = usePlaceStore((state) => state.geolocationRetryKey);
 
     useEffect(() => {
         if (!isTracking) {
@@ -23,11 +26,14 @@ export default function useGeolocation(isTracking = false) {
                 watchIdRef.current = null;
                 setIsWatching(false);
             }
+            setGeolocationError(null);
             return;
         }
 
         if (!navigator.geolocation) {
-            setError('Geolocation is not supported by this browser.');
+            const msg = 'Geolocation is not supported by this browser.';
+            setError(msg);
+            setGeolocationError(msg);
             return;
         }
 
@@ -41,11 +47,14 @@ export default function useGeolocation(isTracking = false) {
             setLocation(newLocation);
             setCurrentLocation(newLocation);
             setError(null);
+            setGeolocationError(null);
         };
 
         const errorHandler = (err) => {
             console.error('[Geolocation] Error:', err.code, err.message);
-            setError('Unable to get your location. Please allow location access.');
+            const msg = resolveGeolocationErrorMessage();
+            setError(msg);
+            setGeolocationError(msg);
             setIsWatching(false);
             if (watchIdRef.current !== null) {
                 navigator.geolocation.clearWatch(watchIdRef.current);
@@ -74,8 +83,9 @@ export default function useGeolocation(isTracking = false) {
                 watchIdRef.current = null;
                 setIsWatching(false);
             }
+            setGeolocationError(null);
         };
-    }, [isTracking, setCurrentLocation]);
+    }, [isTracking, setCurrentLocation, setGeolocationError, geolocationRetryKey]);
 
     return { location, error, isTracking: isWatching };
 }

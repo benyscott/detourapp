@@ -6,6 +6,7 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
+  --font-serif: var(--font-playfair-display);
   --font-mono: var(--font-geist-mono);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -136,13 +137,20 @@
 
   body {
     @apply bg-background text-foreground;
-    font-family: var(--font-playfair-display), var(--font-geist-sans), sans-serif;
+    /* UI text, pills and buttons: sans-serif. Serif (Playfair) is for titles only. */
+    font-family: var(--font-geist-sans), sans-serif;
     margin: 0;
     padding: 0;
     min-height: 100dvh;
     min-height: -webkit-fill-available;
     overflow: hidden;
     position: relative;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-playfair-display), var(--font-geist-sans), serif;
   }
 
   #root {
@@ -153,7 +161,7 @@
 }
 
 /* Layout styles matching vanilla app */
-.top-bar {
+.navigation-bar {
   position: fixed;
   top: 0;
   left: 0;
@@ -168,8 +176,50 @@
 }
 
 #distance {
-  font-size: 1.25rem;
+  /* Vanilla proportions: Roboto at 4vw (≈16px on a phone), capped for large screens */
+  font-family: var(--font-roboto), var(--font-geist-sans), sans-serif;
+  font-size: clamp(14px, 4vw, 18px);
+  font-weight: 400;
+  letter-spacing: normal;
   margin: 0;
   opacity: 0;
   transition: opacity 1s ease-in-out;
+}
+
+@layer utilities {
+  /**
+   * Frosted “liquid glass” surfaces (BAN-138 / BAN-142)
+   */
+  .glass-surface {
+    /* Mostly opaque with a hairline border: on Detour's white background a see-through
+       panel has no visible edge */
+    border: 1px solid color-mix(in oklch, black 9%, transparent);
+    background: color-mix(in oklch, var(--card) 88%, transparent);
+    box-shadow:
+      0 4px 20px color-mix(in oklch, black 8%, transparent),
+      inset 0 1px 0 color-mix(in oklch, white 55%, transparent);
+    backdrop-filter: blur(22px) saturate(1.35);
+    -webkit-backdrop-filter: blur(22px) saturate(1.35);
+  }
+
+  .dark .glass-surface {
+    border-color: color-mix(in oklch, white 12%, transparent);
+    background: color-mix(in oklch, var(--card) 35%, transparent);
+    box-shadow:
+      0 12px 40px color-mix(in oklch, black 45%, transparent),
+      inset 0 1px 0 color-mix(in oklch, white 10%, transparent);
+  }
+
+  .glass-icon-btn {
+    border: 1px solid color-mix(in oklch, white 22%, transparent);
+    background: color-mix(in oklch, var(--card) 22%, transparent);
+    box-shadow: inset 0 1px 0 color-mix(in oklch, white 40%, transparent);
+    backdrop-filter: blur(14px) saturate(1.2);
+    -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  }
+
+  .dark .glass-icon-btn {
+    border-color: color-mix(in oklch, white 10%, transparent);
+    background: color-mix(in oklch, var(--card) 18%, transparent);
+  }
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import usePlaceStore from '@/store/placeStore';
 import useSettingsStore from '@/store/settingsStore';
@@ -21,11 +21,23 @@ export default function Recommendations() {
     const [recommendations, setRecommendations] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const [selectedType, setSelectedType] = useState(null);
-    const { currentLocation, setDestination, destination } = usePlaceStore();
+    const {
+        currentLocation,
+        setDestination,
+        destination,
+        setRecommendations: setMapRecommendations,
+        clearRecommendations,
+    } = usePlaceStore();
     const { searchRadius } = useSettingsStore();
 
     /** Set to false to restore category quick-pick (BAN-115). */
     const BAN115_HIDE_RECOMMENDATIONS_UI = true;
+
+    useEffect(() => {
+        if (destination) {
+            clearRecommendations();
+        }
+    }, [destination, clearRecommendations]);
 
     // Hide recommendations when destination is set
     if (destination) {
@@ -58,9 +70,11 @@ export default function Recommendations() {
             const results = data.results || [];
             console.log('[Recommendations] Found', results.length, type);
             setRecommendations(results);
+            setMapRecommendations(results);
         } catch (error) {
             console.error('[Recommendations] Error:', error);
             setRecommendations([]);
+            clearRecommendations();
         } finally {
             setIsLoading(false);
         }
@@ -76,11 +90,13 @@ export default function Recommendations() {
         });
         setRecommendations([]);
         setSelectedType(null);
+        clearRecommendations();
     };
 
     const handleClose = () => {
         setRecommendations([]);
         setSelectedType(null);
+        clearRecommendations();
     };
 
     if (!currentLocation) {

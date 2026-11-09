@@ -88,7 +88,7 @@ Everything to do with UX/UI, branding, philosophy.
 # Development Setup 🛠️
 
 ## Prerequisites
-- Node.js 18+ and pnpm
+- Node.js 18+ and Yarn classic (lockfile v1)
 - Google Places API key (see [GOOGLE_PLACES_SETUP.md](./GOOGLE_PLACES_SETUP.md))
 - Mapbox access token (optional, for map display)
 
@@ -100,8 +100,14 @@ Create a `.env.local` file in the project root:
 # Required: Google Places API key for location search
 NEXT_PUBLIC_GOOGLE_PLACES_API_KEY=your_google_places_api_key
 
-# Optional: Mapbox token for map display (future feature)
+# Optional: Mapbox token (map + walking directions)
 NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN=your_mapbox_token
+
+# Optional: Studio style URL (overrides inline zen style)
+# NEXT_PUBLIC_MAPBOX_STYLE_URL=mapbox://styles/username/styleid
+
+# Optional: set to 1 for map/pinch logs in production (enabled automatically in development)
+# NEXT_PUBLIC_DEBUG_MAP=1
 
 # Optional: Choose location provider ('google' or 'mapbox')
 # Default: google
@@ -112,13 +118,13 @@ NEXT_PUBLIC_LOCATION_PROVIDER=google
 
 ```bash
 # Install dependencies
-pnpm install
+yarn install
 
 # Run development server with HTTPS (required for geolocation on mobile)
-pnpm run dev:https
+yarn dev:https
 
 # Or run without HTTPS (desktop only)
-pnpm run dev
+yarn dev
 ```
 
 ## Testing on Mobile
