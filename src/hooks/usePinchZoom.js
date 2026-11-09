@@ -114,6 +114,7 @@ export default function usePinchZoom(mapRef) {
 
             // Second finger back down while holding: keep pinching from the current zoom
             isHolding = false;
+            useMapViewStore.getState().setPeeking(true);
 
             mapApi.cancelReturnToZen?.();
             isPinching = true;
@@ -201,6 +202,7 @@ export default function usePinchZoom(mapRef) {
             }
 
             isHolding = false;
+            useMapViewStore.getState().setPeeking(false);
 
             const mapApi = mapRef.current;
             if (!mapApi) {

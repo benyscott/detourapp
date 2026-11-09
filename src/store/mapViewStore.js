@@ -6,6 +6,8 @@ const useMapViewStore = create((set) => ({
     deviceHeading: null,
     /** Set after explicit DeviceOrientationEvent.requestPermission outcome; null when none. */
     deviceOrientationIssue: null,
+    /** True while the map is peeked (pinching, or one finger still holding) */
+    isPeeking: false,
     isSearchOpen: false,
     /** Category chip tapped under the search bar ('coffee', 'restaurant', …); null when closed */
     nearbyCategory: null,
@@ -22,6 +24,7 @@ const useMapViewStore = create((set) => ({
     headingSnapToken: 0,
 
     setMode: (mode) => set({ mode }),
+    setPeeking: (isPeeking) => set({ isPeeking }),
     setTourOpen: (tourOpen) => set({ tourOpen }),
     setBearingFollowsHeading: (bearingFollowsHeading) => set({ bearingFollowsHeading }),
     pulseHeadingSnap: () => set((state) => ({ headingSnapToken: state.headingSnapToken + 1 })),

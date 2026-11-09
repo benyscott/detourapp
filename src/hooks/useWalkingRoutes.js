@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import useMapViewStore from '@/store/mapViewStore';
 import usePlaceStore from '@/store/placeStore';
 import { fetchWalkingRoutes } from '@/lib/mapboxDirections';
 
@@ -50,6 +51,8 @@ export default function useWalkingRoutes() {
     const inflightRef = useRef(null); // { controller, destinationKey }
     const currentLocation = usePlaceStore((state) => state.currentLocation);
     const destination = usePlaceStore((state) => state.destination);
+    // Routes only show on the peek map, so only ask Mapbox while you're peeking
+    const isPeeking = useMapViewStore((state) => state.isPeeking);
     const hasRouteInputs = Boolean(currentLocation && destination);
     const currentKey = destination ? `${destination.id}|${destination.latitude}|${destination.longitude}` : null;
 
@@ -66,22 +69,22 @@ export default function useWalkingRoutes() {
         const destinationChanged = lastDestinationRef.current !== destinationKey;
 
         if (destinationChanged) {
-            // A new destination always wins: drop any request for the old one
+            // A new destination always wins: drop any request and route for the old one
             inflightRef.current?.controller.abort();
             inflightRef.current = null;
             routesRef.current = [];
-        } else {
-            // Same destination: only re-route when you've left every suggested route.
-            // Never cancel a request that's already on its way (GPS updates ~1/s would starve it).
-            if (inflightRef.current) return;
-            // (No routes yet means the last request failed: retry after the interval too.)
-            if (routesRef.current.length > 0 && !isOffAllRoutes(currentLocation, routesRef.current)) return;
-            if (Date.now() - lastFetchAtRef.current < MIN_REROUTE_INTERVAL_MS) return;
+            lastDestinationRef.current = destinationKey;
+            lastFetchAtRef.current = 0;
         }
+
+        // Fetch only while peeking, and only when there's no route yet or you've left every
+        // suggested route. Never cancel a request already on its way (GPS updates ~1/s would starve it).
+        if (!isPeeking || inflightRef.current) return;
+        if (routesRef.current.length > 0 && !isOffAllRoutes(currentLocation, routesRef.current)) return;
+        if (lastFetchAtRef.current && Date.now() - lastFetchAtRef.current < MIN_REROUTE_INTERVAL_MS) return;
 
         const controller = new AbortController();
         inflightRef.current = { controller, destinationKey };
-        lastDestinationRef.current = destinationKey;
         lastFetchAtRef.current = Date.now();
 
         (async () => {
@@ -106,7 +109,7 @@ export default function useWalkingRoutes() {
                 }
             }
         })();
-    }, [currentLocation, destination, hasRouteInputs, currentKey]);
+    }, [currentLocation, destination, hasRouteInputs, currentKey, isPeeking]);
 
     useEffect(() => () => inflightRef.current?.controller.abort(), []);
 
