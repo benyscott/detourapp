@@ -191,10 +191,12 @@
    * Frosted “liquid glass” surfaces (BAN-138 / BAN-142)
    */
   .glass-surface {
-    border: 1px solid color-mix(in oklch, white 28%, transparent);
-    background: color-mix(in oklch, var(--card) 42%, transparent);
+    /* Mostly opaque with a hairline border: on Detour's white background a see-through
+       panel has no visible edge */
+    border: 1px solid color-mix(in oklch, black 9%, transparent);
+    background: color-mix(in oklch, var(--card) 88%, transparent);
     box-shadow:
-      0 8px 32px color-mix(in oklch, black 12%, transparent),
+      0 4px 20px color-mix(in oklch, black 8%, transparent),
       inset 0 1px 0 color-mix(in oklch, white 55%, transparent);
     backdrop-filter: blur(22px) saturate(1.35);
     -webkit-backdrop-filter: blur(22px) saturate(1.35);

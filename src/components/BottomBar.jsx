@@ -9,7 +9,6 @@ import RoulettePanel from '@/components/RoulettePanel';
 import useKeyboardInset from '@/hooks/useKeyboardInset';
 import useMapViewStore from '@/store/mapViewStore';
 import usePlaceStore from '@/store/placeStore';
-import { cn } from '@/lib/utils';
 
 export default function BottomBar() {
     const isSearchOpen = useMapViewStore((s) => s.isSearchOpen);
@@ -40,14 +39,7 @@ export default function BottomBar() {
         >
             <PermissionAlerts />
             {activePanel ? (
-                <div
-                    className={cn(
-                        'w-full',
-                        isSearchOpen ? 'max-h-none overflow-visible' : 'max-h-[66vh] overflow-y-auto'
-                    )}
-                >
-                    {activePanel}
-                </div>
+                <div className="w-full">{activePanel}</div>
             ) : null}
             <MapActionBar />
         </div>
