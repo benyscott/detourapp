@@ -223,7 +223,7 @@ export default function PlaceSearch() {
                             <Input
                                 ref={searchInputRef}
                                 type="text"
-                                placeholder="Where shall we go?"
+                                placeholder="Search here"
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 onFocus={handleSearchFocus}
