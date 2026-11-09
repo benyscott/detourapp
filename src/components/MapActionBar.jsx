@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { Dices, MapPinOff, Menu, Search } from 'lucide-react';
+import { Dices, MapPinOff, Menu, Search, X } from 'lucide-react';
+import PlaceSearch from '@/components/PlaceSearch';
 import SettingsDrawer from '@/components/SettingsDrawer';
 import { Button } from '@/components/ui/button';
 import useMapViewStore from '@/store/mapViewStore';
@@ -23,6 +24,9 @@ export default function MapActionBar() {
 
     return (
         <div className="glass-surface relative flex w-full min-h-[3.25rem] items-center gap-2 rounded-2xl px-2.5 py-2 pr-2">
+            <SettingsDrawer />
+            {/* While searching, the bar itself is the search field */}
+            {isSearchOpen ? <PlaceSearch /> : (
             <div className="flex min-w-0 flex-1 items-center gap-1.5">
                 {/* The menu button is the settings: it opens the Settings drawer directly */}
                 <Button
@@ -35,7 +39,6 @@ export default function MapActionBar() {
                 >
                     <Menu className="size-5" />
                 </Button>
-                <SettingsDrawer />
 
                 {tourOpen ? (
                     <Button
@@ -63,6 +66,7 @@ export default function MapActionBar() {
                     <Dices className="size-5" />
                 </Button>
             </div>
+            )}
 
             <div className="flex shrink-0 items-center pl-1">
                 <Button
@@ -71,14 +75,10 @@ export default function MapActionBar() {
                     variant="ghost"
                     aria-label={isSearchOpen ? 'Close search' : 'Search places'}
                     aria-pressed={isSearchOpen}
-                    className={cn(
-                        glassIconBtn,
-                        'h-12 w-12 shadow-md',
-                        isSearchOpen && 'bg-black/15 ring-2 ring-black/15 dark:bg-white/20 dark:ring-white/10'
-                    )}
+                    className={cn(glassIconBtn, 'h-12 w-12 shadow-md')}
                     onClick={toggleSearchOpen}
                 >
-                    <Search className="size-5" />
+                    {isSearchOpen ? <X className="size-5" /> : <Search className="size-5" />}
                 </Button>
             </div>
         </div>

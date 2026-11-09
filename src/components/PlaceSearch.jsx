@@ -1,11 +1,10 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Loader2, X } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import usePlaceStore from '@/store/placeStore';
 import useSettingsStore from '@/store/settingsStore';
 import useMapViewStore from '@/store/mapViewStore';
-import { Button } from '@/components/ui/button';
 import { Command, CommandEmpty, CommandItem, CommandList } from '@/components/ui/command';
 import { Input } from '@/components/ui/input';
 import { NEARBY_CATEGORIES } from '@/lib/nearbyCategories';
@@ -207,45 +206,55 @@ export default function PlaceSearch() {
         return null;
     }
 
+    // Rendered inside the bottom action bar: the bar itself becomes the search field.
+    // Results (while typing) or the category chips float just above the bar.
     return (
-        <div className="flex w-full flex-col gap-2">
-            {isSearchOpen && (
-                <div className="relative w-full">
-                    <form
-                        onSubmit={(e) => {
-                            e.preventDefault();
-                            if (results.length > 0) {
-                                handleSelectPlace(results[0]);
-                            }
-                        }}
-                    >
-                        <div className="flex items-center gap-2">
-                            <Input
-                                ref={searchInputRef}
-                                type="text"
-                                placeholder="Search here"
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                onFocus={handleSearchFocus}
-                                onBlur={handleSearchBlur}
-                                className="bg-background/85 backdrop-blur-sm"
-                            />
-                            <Button
-                                type="button"
-                                variant="secondary"
-                                size="icon-sm"
-                                className="shrink-0 rounded-full"
-                                onClick={() => setSearchOpen(false)}
-                                aria-label="Close search"
-                            >
-                                <X className="size-4" />
-                            </Button>
-                        </div>
-                    </form>
-
-                    {/* Quick categories: type straight away, or tap one of these */}
+        <>
+            <div
+                className="absolute inset-x-0 bottom-full mb-2"
+                onMouseDown={(e) => e.preventDefault()}
+            >
+                {shouldShowPopover ? (
+                    <div role="presentation" className="glass-surface overflow-hidden rounded-2xl">
+                        <Command shouldFilter={false} className="bg-transparent">
+                            <CommandList className="max-h-[min(50vh,300px)]">
+                                {isSearching && (
+                                    <div className="text-muted-foreground flex items-center justify-center gap-2 py-4 text-sm">
+                                        <Loader2 className="size-4 animate-spin" />
+                                        Searching...
+                                    </div>
+                                )}
+                                {!isSearching && (
+                                    <>
+                                        <CommandEmpty>No places found nearby.</CommandEmpty>
+                                        {results.map((place) => (
+                                            <CommandItem
+                                                key={place.id}
+                                                value={place.name}
+                                                onSelect={() => handleSelectPlace(place)}
+                                                className="h-auto cursor-pointer px-3 py-2"
+                                            >
+                                                <div className="flex w-full flex-col">
+                                                    <span className="font-medium">{place.name}</span>
+                                                    {place.place_name !== place.name && (
+                                                        <span className="text-muted-foreground text-xs">
+                                                            {place.place_name}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </CommandItem>
+                                        ))}
+                                    </>
+                                )}
+                            </CommandList>
+                        </Command>
+                    </div>
+                ) : (
+                    /* Quick categories: type straight away, or tap one of these.
+                       Vertical padding leaves room for the chip shadows: a horizontal scroller
+                       clips anything outside its box, which drew a grey band under the chips. */
                     <div
-                        className="-mx-3 mt-2 flex gap-2 overflow-x-auto px-3 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                        className="-my-2 flex gap-2 overflow-x-auto px-0.5 py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
                         role="list"
                         aria-label="Search nearby by category"
                     >
@@ -254,57 +263,38 @@ export default function PlaceSearch() {
                                 key={id}
                                 type="button"
                                 role="listitem"
-                                onMouseDown={(e) => e.preventDefault()}
                                 onClick={() => setNearbyCategory(id)}
-                                className="glass-surface flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium text-foreground"
+                                className="bg-card text-foreground flex shrink-0 items-center gap-1.5 rounded-full border border-black/10 px-3 py-1.5 text-sm font-medium shadow-sm"
                             >
                                 <Icon className="size-4" aria-hidden />
                                 {label}
                             </button>
                         ))}
                     </div>
-                    {shouldShowPopover && (
-                        <div
-                            role="presentation"
-                            className="bg-popover text-popover-foreground absolute bottom-full left-0 right-0 z-50 mb-2 overflow-hidden rounded-md border shadow-md"
-                            onMouseDown={(e) => e.preventDefault()}
-                        >
-                            <Command shouldFilter={false}>
-                                <CommandList className="max-h-[min(50vh,300px)]">
-                                    {isSearching && (
-                                        <div className="text-muted-foreground flex items-center justify-center gap-2 py-4 text-sm">
-                                            <Loader2 className="size-4 animate-spin" />
-                                            Searching...
-                                        </div>
-                                    )}
-                                    {!isSearching && (
-                                        <>
-                                            <CommandEmpty>No places found nearby.</CommandEmpty>
-                                            {results.map((place) => (
-                                                <CommandItem
-                                                    key={place.id}
-                                                    value={place.name}
-                                                    onSelect={() => handleSelectPlace(place)}
-                                                    className="h-auto cursor-pointer py-2"
-                                                >
-                                                    <div className="flex w-full flex-col">
-                                                        <span className="font-medium">{place.name}</span>
-                                                        {place.place_name !== place.name && (
-                                                            <span className="text-muted-foreground text-xs">
-                                                                {place.place_name}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                </CommandItem>
-                                            ))}
-                                        </>
-                                    )}
-                                </CommandList>
-                            </Command>
-                        </div>
-                    )}
-                </div>
-            )}
-        </div>
+                )}
+            </div>
+
+            <form
+                className="min-w-0 flex-1"
+                onSubmit={(e) => {
+                    e.preventDefault();
+                    if (results.length > 0) {
+                        handleSelectPlace(results[0]);
+                    }
+                }}
+            >
+                <Input
+                    ref={searchInputRef}
+                    type="text"
+                    enterKeyHint="search"
+                    placeholder="Search here"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onFocus={handleSearchFocus}
+                    onBlur={handleSearchBlur}
+                    className="h-11 border-0 bg-transparent px-2 shadow-none focus-visible:border-0 focus-visible:ring-0 dark:bg-transparent"
+                />
+            </form>
+        </>
     );
 }

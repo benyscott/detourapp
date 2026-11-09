@@ -4,7 +4,6 @@ import DestinationBottomPanel from '@/components/DestinationBottomPanel';
 import MapActionBar from '@/components/MapActionBar';
 import NearbyPlacesPanel from '@/components/NearbyPlacesPanel';
 import PermissionAlerts from '@/components/PermissionAlerts';
-import PlaceSearch from '@/components/PlaceSearch';
 import RoulettePanel from '@/components/RoulettePanel';
 import useKeyboardInset from '@/hooks/useKeyboardInset';
 import useMapViewStore from '@/store/mapViewStore';
@@ -17,8 +16,9 @@ export default function BottomBar() {
     const destination = usePlaceStore((s) => s.destination);
     const keyboardInset = useKeyboardInset();
 
+    // Search lives inside the action bar itself (MapActionBar)
     const activePanel = isSearchOpen
-        ? <PlaceSearch />
+        ? null
         : nearbyCategory
           ? <NearbyPlacesPanel />
           : isRouletteOpen
