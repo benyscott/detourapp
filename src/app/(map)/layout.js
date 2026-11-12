@@ -4,6 +4,7 @@ import { useRef } from 'react';
 import dynamic from 'next/dynamic';
 import BottomBar from '@/components/BottomBar';
 import Compass from '@/components/Compass';
+import useCurrentPlace from '@/hooks/useCurrentPlace';
 import useGeolocation from '@/hooks/useGeolocation';
 import useNavigation from '@/hooks/useNavigation';
 import usePinchZoom from '@/hooks/usePinchZoom';
@@ -15,6 +16,7 @@ const MapboxMap = dynamic(() => import('@/components/MapboxMap'), { ssr: false }
 export default function MapLayout({ children }) {
     useGeolocation(true);
     useNavigation();
+    useCurrentPlace();
     const mapRef = useRef(null);
     const destination = usePlaceStore((state) => state.destination);
     const recommendations = usePlaceStore((state) => state.recommendations);
