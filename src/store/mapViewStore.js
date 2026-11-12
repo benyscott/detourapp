@@ -57,6 +57,14 @@ const useMapViewStore = create((set) => ({
 
     setSettingsOpen: (isSettingsOpen) => set({ isSettingsOpen }),
 
+    /** Arrival guide drawer (BAN-162); opening it closes search */
+    isPlaceGuideOpen: false,
+    setPlaceGuideOpen: (isPlaceGuideOpen) =>
+        set((state) => ({
+            isPlaceGuideOpen,
+            isSearchOpen: isPlaceGuideOpen ? false : state.isSearchOpen,
+        })),
+
     setRouletteOpen: (isRouletteOpen) =>
         set((state) => ({
             isRouletteOpen,

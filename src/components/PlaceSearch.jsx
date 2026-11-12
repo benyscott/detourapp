@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Clock, Loader2 } from 'lucide-react';
+import { BookOpen, Clock, Loader2 } from 'lucide-react';
 import usePlaceStore from '@/store/placeStore';
 import useSettingsStore from '@/store/settingsStore';
 import useMapViewStore from '@/store/mapViewStore';
+import useVisitStore from '@/store/visitStore';
 import { Command, CommandEmpty, CommandItem, CommandList } from '@/components/ui/command';
 import { Input } from '@/components/ui/input';
 import { NEARBY_CATEGORIES } from '@/lib/nearbyCategories';
@@ -20,6 +21,9 @@ const newSessionToken = () =>
 
 export default function PlaceSearch() {
     const recentPlaces = usePlaceStore((s) => s.recentPlaces);
+    const currentPlace = useVisitStore((s) => s.currentPlace);
+    const isAway = useVisitStore((s) => s.isAway);
+    const setPlaceGuideOpen = useMapViewStore((s) => s.setPlaceGuideOpen);
     const [searchQuery, setSearchQuery] = useState('');
     const [results, setResults] = useState([]);
     const [isSearching, setIsSearching] = useState(false);
@@ -303,6 +307,18 @@ export default function PlaceSearch() {
                         role="list"
                         aria-label="Search nearby by category"
                     >
+                        {/* Away from home: the town's guide comes first, so it's always one tap away */}
+                        {isAway && currentPlace && (
+                            <button
+                                type="button"
+                                role="listitem"
+                                onClick={() => setPlaceGuideOpen(true)}
+                                className="bg-card text-foreground flex shrink-0 items-center gap-1.5 rounded-full border border-black/10 px-3 py-1.5 text-sm font-medium shadow-sm"
+                            >
+                                <BookOpen className="size-4" aria-hidden />
+                                {currentPlace.name}
+                            </button>
+                        )}
                         {NEARBY_CATEGORIES.map(({ id, label, icon: Icon }) => (
                             <button
                                 key={id}

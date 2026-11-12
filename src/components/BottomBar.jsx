@@ -4,16 +4,20 @@ import DestinationBottomPanel from '@/components/DestinationBottomPanel';
 import MapActionBar from '@/components/MapActionBar';
 import NearbyPlacesPanel from '@/components/NearbyPlacesPanel';
 import PermissionAlerts from '@/components/PermissionAlerts';
+import PlaceGuideDrawer from '@/components/PlaceGuideDrawer';
+import PlaceWelcomePanel from '@/components/PlaceWelcomePanel';
 import RoulettePanel from '@/components/RoulettePanel';
 import useKeyboardInset from '@/hooks/useKeyboardInset';
 import useMapViewStore from '@/store/mapViewStore';
 import usePlaceStore from '@/store/placeStore';
+import useVisitStore from '@/store/visitStore';
 
 export default function BottomBar() {
     const isSearchOpen = useMapViewStore((s) => s.isSearchOpen);
     const nearbyCategory = useMapViewStore((s) => s.nearbyCategory);
     const isRouletteOpen = useMapViewStore((s) => s.isRouletteOpen);
     const destination = usePlaceStore((s) => s.destination);
+    const showWelcome = useVisitStore((s) => s.showWelcome);
     const keyboardInset = useKeyboardInset();
 
     // Search lives inside the action bar itself (MapActionBar)
@@ -25,7 +29,9 @@ export default function BottomBar() {
             ? <RoulettePanel />
             : destination
             ? <DestinationBottomPanel />
-            : null;
+            : showWelcome
+              ? <PlaceWelcomePanel />
+              : null;
 
     return (
         <div
@@ -42,6 +48,7 @@ export default function BottomBar() {
                 <div className="w-full">{activePanel}</div>
             ) : null}
             <MapActionBar />
+            <PlaceGuideDrawer />
         </div>
     );
 }
