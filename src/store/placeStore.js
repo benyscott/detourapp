@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { loadRecentPlaces, rememberPlace } from '@/lib/recentPlaces';
 
 const usePlaceStore = create((set) => ({
     // State
@@ -18,9 +19,20 @@ const usePlaceStore = create((set) => ({
         set({ currentLocation: location });
     },
 
-    setDestination: (destination) => {
+    /** Last places picked as a destination, newest first (shown when search opens) */
+    recentPlaces: loadRecentPlaces(),
+
+    /**
+     * Every way of picking a destination goes through here, so this is where recents are
+     * recorded. Pass { remember: false } for destinations that aren't a choice (tour stops).
+     */
+    setDestination: (destination, { remember = true } = {}) => {
         console.log('[Store] Destination set', destination);
-        set({ destination });
+        set((state) => ({
+            destination,
+            recentPlaces:
+                remember && destination ? rememberPlace(destination, state.recentPlaces) : state.recentPlaces,
+        }));
     },
 
     setRecommendations: (recommendations) => {

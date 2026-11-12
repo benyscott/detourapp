@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Clock, Loader2 } from 'lucide-react';
 import usePlaceStore from '@/store/placeStore';
 import useSettingsStore from '@/store/settingsStore';
 import useMapViewStore from '@/store/mapViewStore';
@@ -19,6 +19,7 @@ const newSessionToken = () =>
         : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
 
 export default function PlaceSearch() {
+    const recentPlaces = usePlaceStore((s) => s.recentPlaces);
     const [searchQuery, setSearchQuery] = useState('');
     const [results, setResults] = useState([]);
     const [isSearching, setIsSearching] = useState(false);
@@ -183,6 +184,23 @@ export default function PlaceSearch() {
         setSearchOpen(false);
     };
 
+    // Recents are stored with coordinates: go straight there, no API call
+    const handleSelectRecent = (place) => {
+        setDestination({
+            id: place.id,
+            latitude: place.latitude,
+            longitude: place.longitude,
+            name: place.name,
+            provider: place.provider,
+            category: place.category,
+            address: place.address ?? null,
+        });
+        setSearchQuery('');
+        setSearchOpen(false);
+    };
+
+    const showRecents = recentPlaces.length > 0 && searchQuery.trim().length === 0;
+
     const shouldShowPopover = isSearchOpen && showResults && searchQuery.trim().length >= MIN_QUERY_LENGTH;
 
     const handleSearchFocus = () => {
@@ -250,9 +268,36 @@ export default function PlaceSearch() {
                         </Command>
                     </div>
                 ) : (
-                    /* Quick categories: type straight away, or tap one of these.
+                    <>
+                    {showRecents && (
+                        <ul
+                            className="glass-surface m-0 mb-3 list-none divide-y divide-border/60 rounded-2xl px-3 py-1"
+                            aria-label="Recent places"
+                        >
+                            {recentPlaces.slice(0, 3).map((place) => (
+                                <li key={place.id}>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleSelectRecent(place)}
+                                        className="flex w-full items-center gap-3 py-2.5 text-left"
+                                    >
+                                        <Clock className="text-muted-foreground size-4 shrink-0" aria-hidden />
+                                        <span className="min-w-0 flex-1">
+                                            <span className="block truncate text-sm font-medium">{place.name}</span>
+                                            {place.address && (
+                                                <span className="text-muted-foreground block truncate text-xs">
+                                                    {place.address}
+                                                </span>
+                                            )}
+                                        </span>
+                                    </button>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                    {/* Quick categories: type straight away, or tap one of these.
                        Vertical padding leaves room for the chip shadows: a horizontal scroller
-                       clips anything outside its box, which drew a grey band under the chips. */
+                       clips anything outside its box, which drew a grey band under the chips. */}
                     <div
                         className="-my-2 flex gap-2 overflow-x-auto px-0.5 py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
                         role="list"
@@ -271,6 +316,7 @@ export default function PlaceSearch() {
                             </button>
                         ))}
                     </div>
+                    </>
                 )}
             </div>
 

@@ -57,7 +57,7 @@ export default function TourOverlay({ itinerary }) {
             latitude: currentStop.place.latitude,
             longitude: currentStop.place.longitude,
             address: currentStop.place.address ?? null,
-        });
+        }, { remember: false });
 
         return () => {
             clearDestination();
