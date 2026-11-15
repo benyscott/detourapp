@@ -14,7 +14,7 @@ import useVisitStore from '@/store/visitStore';
 
 export default function BottomBar() {
     const isSearchOpen = useMapViewStore((s) => s.isSearchOpen);
-    const nearbyCategory = useMapViewStore((s) => s.nearbyCategory);
+    const nearbyQuery = useMapViewStore((s) => s.nearbyQuery);
     const isRouletteOpen = useMapViewStore((s) => s.isRouletteOpen);
     const destination = usePlaceStore((s) => s.destination);
     const showWelcome = useVisitStore((s) => s.showWelcome);
@@ -23,8 +23,8 @@ export default function BottomBar() {
     // Search lives inside the action bar itself (MapActionBar)
     const activePanel = isSearchOpen
         ? null
-        : nearbyCategory
-          ? <NearbyPlacesPanel />
+        : nearbyQuery
+          ? <NearbyPlacesPanel key={nearbyQuery.kind === 'text' ? `q:${nearbyQuery.q}` : nearbyQuery.id} />
           : isRouletteOpen
             ? <RoulettePanel />
             : destination

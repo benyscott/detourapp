@@ -1,13 +1,14 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { BookOpen, Clock, Loader2 } from 'lucide-react';
+import { BookOpen, Clock, Loader2, Search } from 'lucide-react';
 import usePlaceStore from '@/store/placeStore';
 import useSettingsStore from '@/store/settingsStore';
 import useMapViewStore from '@/store/mapViewStore';
 import useVisitStore from '@/store/visitStore';
-import { Command, CommandEmpty, CommandItem, CommandList } from '@/components/ui/command';
+import { Command, CommandItem, CommandList } from '@/components/ui/command';
 import { Input } from '@/components/ui/input';
+import { formatMeters } from '@/lib/geoUtils';
 import { NEARBY_CATEGORIES } from '@/lib/nearbyCategories';
 
 const MIN_QUERY_LENGTH = 2;
@@ -38,7 +39,7 @@ export default function PlaceSearch() {
     const { searchRadius } = useSettingsStore();
     const isSearchOpen = useMapViewStore((s) => s.isSearchOpen);
     const setSearchOpen = useMapViewStore((s) => s.setSearchOpen);
-    const setNearbyCategory = useMapViewStore((s) => s.setNearbyCategory);
+    const setNearbyQuery = useMapViewStore((s) => s.setNearbyQuery);
 
     useEffect(() => {
         locationRef.current = currentLocation;
@@ -203,6 +204,18 @@ export default function PlaceSearch() {
         setSearchOpen(false);
     };
 
+    // Full list with hours + ratings (Text Search): one deliberate tap, never per keystroke
+    const handleSearchAround = () => {
+        const q = searchQuery.trim();
+        if (q.length < MIN_QUERY_LENGTH) {
+            return;
+        }
+        // The autocomplete session ends without a details call; start fresh next time
+        sessionTokenRef.current = null;
+        searchInputRef.current?.blur();
+        setNearbyQuery({ kind: 'text', q });
+    };
+
     const showRecents = recentPlaces.length > 0 && searchQuery.trim().length === 0;
 
     const shouldShowPopover = isSearchOpen && showResults && searchQuery.trim().length >= MIN_QUERY_LENGTH;
@@ -240,6 +253,16 @@ export default function PlaceSearch() {
                     <div role="presentation" className="glass-surface overflow-hidden rounded-2xl">
                         <Command shouldFilter={false} className="bg-transparent">
                             <CommandList className="max-h-[min(50vh,300px)]">
+                                <CommandItem
+                                    value="__search-around"
+                                    onSelect={handleSearchAround}
+                                    className="h-auto cursor-pointer px-3 py-2.5"
+                                >
+                                    <Search className="size-4 shrink-0" aria-hidden />
+                                    <span className="min-w-0 flex-1 truncate">
+                                        Search <span className="font-medium">“{searchQuery.trim()}”</span> around you
+                                    </span>
+                                </CommandItem>
                                 {isSearching && (
                                     <div className="text-muted-foreground flex items-center justify-center gap-2 py-4 text-sm">
                                         <Loader2 className="size-4 animate-spin" />
@@ -248,7 +271,11 @@ export default function PlaceSearch() {
                                 )}
                                 {!isSearching && (
                                     <>
-                                        <CommandEmpty>No places found nearby.</CommandEmpty>
+                                        {results.length === 0 && (
+                                            <p className="text-muted-foreground m-0 py-3 text-center text-sm">
+                                                No suggestions nearby.
+                                            </p>
+                                        )}
                                         {results.map((place) => (
                                             <CommandItem
                                                 key={place.id}
@@ -256,11 +283,18 @@ export default function PlaceSearch() {
                                                 onSelect={() => handleSelectPlace(place)}
                                                 className="h-auto cursor-pointer px-3 py-2"
                                             >
-                                                <div className="flex w-full flex-col">
-                                                    <span className="font-medium">{place.name}</span>
-                                                    {place.place_name !== place.name && (
-                                                        <span className="text-muted-foreground text-xs">
-                                                            {place.place_name}
+                                                <div className="flex w-full items-center gap-3">
+                                                    <div className="flex min-w-0 flex-1 flex-col">
+                                                        <span className="truncate font-medium">{place.name}</span>
+                                                        {place.place_name && place.place_name !== place.name && (
+                                                            <span className="text-muted-foreground truncate text-xs">
+                                                                {place.place_name}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    {place.distance != null && (
+                                                        <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
+                                                            {formatMeters(place.distance)}
                                                         </span>
                                                     )}
                                                 </div>
@@ -324,7 +358,7 @@ export default function PlaceSearch() {
                                 key={id}
                                 type="button"
                                 role="listitem"
-                                onClick={() => setNearbyCategory(id)}
+                                onClick={() => setNearbyQuery({ kind: 'category', id })}
                                 className="bg-card text-foreground flex shrink-0 items-center gap-1.5 rounded-full border border-black/10 px-3 py-1.5 text-sm font-medium shadow-sm"
                             >
                                 <Icon className="size-4" aria-hidden />
@@ -340,9 +374,7 @@ export default function PlaceSearch() {
                 className="min-w-0 flex-1"
                 onSubmit={(e) => {
                     e.preventDefault();
-                    if (results.length > 0) {
-                        handleSelectPlace(results[0]);
-                    }
+                    handleSearchAround();
                 }}
             >
                 <Input
