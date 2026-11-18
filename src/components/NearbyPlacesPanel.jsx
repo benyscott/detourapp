@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { ChevronDown, Dices, MapPin, Star, X } from 'lucide-react';
+import { ChevronDown, Dices, MapPin, Search, Star, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import useRandomPick from '@/hooks/useRandomPick';
 import { formatDistance, formatMeters } from '@/lib/geoUtils';
@@ -45,14 +45,37 @@ function PillSelect({ value, onChange, children, label, className }) {
 }
 
 /**
- * Places of one category around you, opened from a chip under the search bar.
+ * What the list is about: a category chip (Coffee, Bars…) or a typed query ("bazar").
+ * Text lists get the search icon and default to Open now, like most categories.
+ */
+const describeQuery = (nearbyQuery) => {
+    if (!nearbyQuery) return null;
+    if (nearbyQuery.kind === 'text') {
+        const q = nearbyQuery.q;
+        return { key: `q:${q}`, label: `“${q}”`, noun: 'places', icon: Search, openNow: true, endpoint: 'text', param: ['q', q] };
+    }
+    const category = getNearbyCategory(nearbyQuery.id);
+    if (!category) return null;
+    return {
+        key: category.id,
+        label: category.label,
+        noun: category.label.toLowerCase(),
+        icon: category.icon,
+        openNow: category.openNow,
+        endpoint: 'nearby',
+        param: ['type', category.type],
+    };
+};
+
+/**
+ * Places around you, opened from a category chip or "Search around you".
  * One request per open (20 closest, with hours + rating); the filters and the random pick
  * work on that list without searching again.
  */
 export default function NearbyPlacesPanel() {
-    const nearbyCategory = useMapViewStore((s) => s.nearbyCategory);
-    const setNearbyCategory = useMapViewStore((s) => s.setNearbyCategory);
-    const category = getNearbyCategory(nearbyCategory);
+    const nearbyQuery = useMapViewStore((s) => s.nearbyQuery);
+    const setNearbyQuery = useMapViewStore((s) => s.setNearbyQuery);
+    const category = useMemo(() => describeQuery(nearbyQuery), [nearbyQuery]);
 
     const hasLocation = usePlaceStore((s) => Boolean(s.currentLocation));
     const geolocationError = usePlaceStore((s) => s.geolocationError);
@@ -93,9 +116,9 @@ export default function NearbyPlacesPanel() {
                     lat: latitude.toString(),
                     lng: longitude.toString(),
                     radius: searchRadius.toString(),
-                    type: category.type,
                 });
-                const response = await fetch(`/api/places/nearby?${params.toString()}`);
+                params.append(...category.param);
+                const response = await fetch(`/api/places/${category.endpoint}?${params.toString()}`);
                 if (!response.ok) {
                     throw new Error('Could not load places nearby');
                 }
@@ -177,7 +200,7 @@ export default function NearbyPlacesPanel() {
             category: place.category,
             address: place.place_name ?? null,
         });
-        setNearbyCategory(null);
+        setNearbyQuery(null);
     };
 
     if (!category) {
@@ -185,23 +208,23 @@ export default function NearbyPlacesPanel() {
     }
 
     const Icon = category.icon;
-    const noun = category.label.toLowerCase();
+    const noun = category.noun;
     const isSpinning = randomPick.phase === 'spinning';
     const pick = randomPick.pick;
 
     return (
         <section className="glass-surface w-full max-w-md rounded-2xl px-4 py-3" aria-label={`${category.label} nearby`}>
             <div className="flex items-center justify-between">
-                <h3 className="m-0 flex items-center gap-1.5 text-base font-semibold">
-                    <Icon className="size-4" aria-hidden />
-                    {category.label}
+                <h3 className="m-0 flex min-w-0 items-center gap-1.5 text-base font-semibold">
+                    <Icon className="size-4 shrink-0" aria-hidden />
+                    <span className="truncate">{category.label}</span>
                 </h3>
                 <Button
                     type="button"
                     variant="ghost"
                     size="icon-sm"
                     className="rounded-full"
-                    onClick={() => setNearbyCategory(null)}
+                    onClick={() => setNearbyQuery(null)}
                     aria-label={`Close ${noun} list`}
                 >
                     <X className="size-4" />

@@ -1,5 +1,18 @@
 import { LocationProvider, Place, PlaceDetails } from '../locationService';
 
+/** Places API (New) fields for the lists: rating + weekly hours, so filters stay client-side */
+const DETAILED_FIELD_MASK = [
+    'places.id',
+    'places.displayName',
+    'places.shortFormattedAddress',
+    'places.location',
+    'places.rating',
+    'places.userRatingCount',
+    'places.businessStatus',
+    'places.currentOpeningHours.openNow',
+    'places.regularOpeningHours.periods',
+].join(',');
+
 /**
  * Google Places API Provider
  * Implements location services using Google Places API
@@ -362,17 +375,7 @@ export class GooglePlacesProvider extends LocationProvider {
             headers: {
                 'Content-Type': 'application/json',
                 'X-Goog-Api-Key': this.apiKey,
-                'X-Goog-FieldMask': [
-                    'places.id',
-                    'places.displayName',
-                    'places.shortFormattedAddress',
-                    'places.location',
-                    'places.rating',
-                    'places.userRatingCount',
-                    'places.businessStatus',
-                    'places.currentOpeningHours.openNow',
-                    'places.regularOpeningHours.periods',
-                ].join(','),
+                'X-Goog-FieldMask': DETAILED_FIELD_MASK,
             },
             body: JSON.stringify({
                 includedTypes: [type],
@@ -391,7 +394,57 @@ export class GooglePlacesProvider extends LocationProvider {
             );
         }
 
-        return (data.places || [])
+        return this.mapDetailedPlaces(data.places, { latitude, longitude }, type);
+    }
+
+    /**
+     * Free-text search around you ("bazar"), with the same rating + hours as the category
+     * lists (BAN-167). Text Search only accepts a rectangle restriction, so we ask for the
+     * box around the radius and drop what falls outside the circle.
+     */
+    async searchTextDetailed({ query, latitude, longitude, radius }) {
+        if (!this.apiKey) {
+            throw new Error('Google Places API key not configured');
+        }
+
+        const dLat = radius / 111320;
+        const dLng = radius / (111320 * Math.max(0.01, Math.cos((latitude * Math.PI) / 180)));
+
+        const response = await fetch('https://places.googleapis.com/v1/places:searchText', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Goog-Api-Key': this.apiKey,
+                'X-Goog-FieldMask': `${DETAILED_FIELD_MASK},places.primaryType`,
+            },
+            body: JSON.stringify({
+                textQuery: query,
+                pageSize: 20,
+                rankPreference: 'DISTANCE',
+                locationRestriction: {
+                    rectangle: {
+                        low: { latitude: latitude - dLat, longitude: longitude - dLng },
+                        high: { latitude: latitude + dLat, longitude: longitude + dLng },
+                    },
+                },
+            }),
+        });
+
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            throw new Error(
+                `Google Places (New) text search error: ${data.error?.status || response.status} - ${data.error?.message || ''}`
+            );
+        }
+
+        return this.mapDetailedPlaces(data.places, { latitude, longitude })
+            .filter((place) => place.distance != null && place.distance <= radius)
+            .sort((a, b) => a.distance - b.distance);
+    }
+
+    /** Places API (New) results → the plain objects the nearby list renders */
+    mapDetailedPlaces(places, origin, category = null) {
+        return (places || [])
             .filter((place) => !place.businessStatus || place.businessStatus === 'OPERATIONAL')
             .map((place) => ({
                 id: place.id,
@@ -399,14 +452,14 @@ export class GooglePlacesProvider extends LocationProvider {
                 place_name: place.shortFormattedAddress ?? '',
                 latitude: place.location?.latitude,
                 longitude: place.location?.longitude,
-                category: type,
+                category: category ?? place.primaryType ?? 'place',
                 provider: 'google',
                 rating: place.rating ?? null,
                 ratingCount: place.userRatingCount ?? null,
                 openNow: place.currentOpeningHours?.openNow ?? null,
                 periods: place.regularOpeningHours?.periods ?? null,
                 distance: place.location
-                    ? this.calculateDistance(latitude, longitude, place.location.latitude, place.location.longitude)
+                    ? this.calculateDistance(origin.latitude, origin.longitude, place.location.latitude, place.location.longitude)
                     : null,
             }));
     }

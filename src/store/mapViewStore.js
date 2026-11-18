@@ -9,8 +9,11 @@ const useMapViewStore = create((set) => ({
     /** True while the map is peeked (pinching, or one finger still holding) */
     isPeeking: false,
     isSearchOpen: false,
-    /** Category chip tapped under the search bar ('coffee', 'restaurant', …); null when closed */
-    nearbyCategory: null,
+    /**
+     * List of places around you, shown above the action bar; null when closed.
+     * `{ kind: 'category', id: 'coffee' }` from a chip, `{ kind: 'text', q: 'bazar' }` from "Search around you".
+     */
+    nearbyQuery: null,
     isRouletteOpen: false,
     isSettingsOpen: false,
     /** True while an itinerary tour is running on `/?tour=` (BAN-135). */
@@ -37,37 +40,45 @@ const useMapViewStore = create((set) => ({
     setSearchOpen: (isSearchOpen) =>
         set((state) => ({
             isSearchOpen,
-            nearbyCategory: isSearchOpen ? null : state.nearbyCategory,
+            nearbyQuery: isSearchOpen ? null : state.nearbyQuery,
             isRouletteOpen: isSearchOpen ? false : state.isRouletteOpen,
         })),
     toggleSearchOpen: () =>
         set((state) => ({
             isSearchOpen: !state.isSearchOpen,
-            nearbyCategory: null,
+            nearbyQuery: null,
             isRouletteOpen: false,
         })),
 
-    /** Open the nearby list for a category (closes search), or pass null to close it */
-    setNearbyCategory: (nearbyCategory) =>
+    /** Open the nearby list (closes search), or pass null to close it */
+    setNearbyQuery: (nearbyQuery) =>
         set((state) => ({
-            nearbyCategory,
-            isSearchOpen: nearbyCategory ? false : state.isSearchOpen,
-            isRouletteOpen: nearbyCategory ? false : state.isRouletteOpen,
+            nearbyQuery,
+            isSearchOpen: nearbyQuery ? false : state.isSearchOpen,
+            isRouletteOpen: nearbyQuery ? false : state.isRouletteOpen,
         })),
 
     setSettingsOpen: (isSettingsOpen) => set({ isSettingsOpen }),
+
+    /** Arrival guide drawer (BAN-162); opening it closes search */
+    isPlaceGuideOpen: false,
+    setPlaceGuideOpen: (isPlaceGuideOpen) =>
+        set((state) => ({
+            isPlaceGuideOpen,
+            isSearchOpen: isPlaceGuideOpen ? false : state.isSearchOpen,
+        })),
 
     setRouletteOpen: (isRouletteOpen) =>
         set((state) => ({
             isRouletteOpen,
             isSearchOpen: isRouletteOpen ? false : state.isSearchOpen,
-            nearbyCategory: isRouletteOpen ? null : state.nearbyCategory,
+            nearbyQuery: isRouletteOpen ? null : state.nearbyQuery,
         })),
     toggleRouletteOpen: () =>
         set((state) => ({
             isRouletteOpen: !state.isRouletteOpen,
             isSearchOpen: false,
-            nearbyCategory: null,
+            nearbyQuery: null,
         })),
 }));
 

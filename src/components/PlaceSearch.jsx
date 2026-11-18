@@ -1,12 +1,14 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Loader2 } from 'lucide-react';
+import { BookOpen, Clock, Loader2, Search } from 'lucide-react';
 import usePlaceStore from '@/store/placeStore';
 import useSettingsStore from '@/store/settingsStore';
 import useMapViewStore from '@/store/mapViewStore';
-import { Command, CommandEmpty, CommandItem, CommandList } from '@/components/ui/command';
+import useVisitStore from '@/store/visitStore';
+import { Command, CommandItem, CommandList } from '@/components/ui/command';
 import { Input } from '@/components/ui/input';
+import { formatMeters } from '@/lib/geoUtils';
 import { NEARBY_CATEGORIES } from '@/lib/nearbyCategories';
 
 const MIN_QUERY_LENGTH = 2;
@@ -19,6 +21,10 @@ const newSessionToken = () =>
         : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
 
 export default function PlaceSearch() {
+    const recentPlaces = usePlaceStore((s) => s.recentPlaces);
+    const currentPlace = useVisitStore((s) => s.currentPlace);
+    const isAway = useVisitStore((s) => s.isAway);
+    const setPlaceGuideOpen = useMapViewStore((s) => s.setPlaceGuideOpen);
     const [searchQuery, setSearchQuery] = useState('');
     const [results, setResults] = useState([]);
     const [isSearching, setIsSearching] = useState(false);
@@ -33,7 +39,7 @@ export default function PlaceSearch() {
     const { searchRadius } = useSettingsStore();
     const isSearchOpen = useMapViewStore((s) => s.isSearchOpen);
     const setSearchOpen = useMapViewStore((s) => s.setSearchOpen);
-    const setNearbyCategory = useMapViewStore((s) => s.setNearbyCategory);
+    const setNearbyQuery = useMapViewStore((s) => s.setNearbyQuery);
 
     useEffect(() => {
         locationRef.current = currentLocation;
@@ -183,6 +189,35 @@ export default function PlaceSearch() {
         setSearchOpen(false);
     };
 
+    // Recents are stored with coordinates: go straight there, no API call
+    const handleSelectRecent = (place) => {
+        setDestination({
+            id: place.id,
+            latitude: place.latitude,
+            longitude: place.longitude,
+            name: place.name,
+            provider: place.provider,
+            category: place.category,
+            address: place.address ?? null,
+        });
+        setSearchQuery('');
+        setSearchOpen(false);
+    };
+
+    // Full list with hours + ratings (Text Search): one deliberate tap, never per keystroke
+    const handleSearchAround = () => {
+        const q = searchQuery.trim();
+        if (q.length < MIN_QUERY_LENGTH) {
+            return;
+        }
+        // The autocomplete session ends without a details call; start fresh next time
+        sessionTokenRef.current = null;
+        searchInputRef.current?.blur();
+        setNearbyQuery({ kind: 'text', q });
+    };
+
+    const showRecents = recentPlaces.length > 0 && searchQuery.trim().length === 0;
+
     const shouldShowPopover = isSearchOpen && showResults && searchQuery.trim().length >= MIN_QUERY_LENGTH;
 
     const handleSearchFocus = () => {
@@ -218,6 +253,16 @@ export default function PlaceSearch() {
                     <div role="presentation" className="glass-surface overflow-hidden rounded-2xl">
                         <Command shouldFilter={false} className="bg-transparent">
                             <CommandList className="max-h-[min(50vh,300px)]">
+                                <CommandItem
+                                    value="__search-around"
+                                    onSelect={handleSearchAround}
+                                    className="h-auto cursor-pointer px-3 py-2.5"
+                                >
+                                    <Search className="size-4 shrink-0" aria-hidden />
+                                    <span className="min-w-0 flex-1 truncate">
+                                        Search <span className="font-medium">“{searchQuery.trim()}”</span> around you
+                                    </span>
+                                </CommandItem>
                                 {isSearching && (
                                     <div className="text-muted-foreground flex items-center justify-center gap-2 py-4 text-sm">
                                         <Loader2 className="size-4 animate-spin" />
@@ -226,7 +271,11 @@ export default function PlaceSearch() {
                                 )}
                                 {!isSearching && (
                                     <>
-                                        <CommandEmpty>No places found nearby.</CommandEmpty>
+                                        {results.length === 0 && (
+                                            <p className="text-muted-foreground m-0 py-3 text-center text-sm">
+                                                No suggestions nearby.
+                                            </p>
+                                        )}
                                         {results.map((place) => (
                                             <CommandItem
                                                 key={place.id}
@@ -234,11 +283,18 @@ export default function PlaceSearch() {
                                                 onSelect={() => handleSelectPlace(place)}
                                                 className="h-auto cursor-pointer px-3 py-2"
                                             >
-                                                <div className="flex w-full flex-col">
-                                                    <span className="font-medium">{place.name}</span>
-                                                    {place.place_name !== place.name && (
-                                                        <span className="text-muted-foreground text-xs">
-                                                            {place.place_name}
+                                                <div className="flex w-full items-center gap-3">
+                                                    <div className="flex min-w-0 flex-1 flex-col">
+                                                        <span className="truncate font-medium">{place.name}</span>
+                                                        {place.place_name && place.place_name !== place.name && (
+                                                            <span className="text-muted-foreground truncate text-xs">
+                                                                {place.place_name}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    {place.distance != null && (
+                                                        <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
+                                                            {formatMeters(place.distance)}
                                                         </span>
                                                     )}
                                                 </div>
@@ -250,20 +306,59 @@ export default function PlaceSearch() {
                         </Command>
                     </div>
                 ) : (
-                    /* Quick categories: type straight away, or tap one of these.
+                    <>
+                    {showRecents && (
+                        <ul
+                            className="glass-surface m-0 mb-3 list-none divide-y divide-border/60 rounded-2xl px-3 py-1"
+                            aria-label="Recent places"
+                        >
+                            {recentPlaces.slice(0, 3).map((place) => (
+                                <li key={place.id}>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleSelectRecent(place)}
+                                        className="flex w-full items-center gap-3 py-2.5 text-left"
+                                    >
+                                        <Clock className="text-muted-foreground size-4 shrink-0" aria-hidden />
+                                        <span className="min-w-0 flex-1">
+                                            <span className="block truncate text-sm font-medium">{place.name}</span>
+                                            {place.address && (
+                                                <span className="text-muted-foreground block truncate text-xs">
+                                                    {place.address}
+                                                </span>
+                                            )}
+                                        </span>
+                                    </button>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                    {/* Quick categories: type straight away, or tap one of these.
                        Vertical padding leaves room for the chip shadows: a horizontal scroller
-                       clips anything outside its box, which drew a grey band under the chips. */
+                       clips anything outside its box, which drew a grey band under the chips. */}
                     <div
                         className="-my-2 flex gap-2 overflow-x-auto px-0.5 py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
                         role="list"
                         aria-label="Search nearby by category"
                     >
+                        {/* Away from home: the town's guide comes first, so it's always one tap away */}
+                        {isAway && currentPlace && (
+                            <button
+                                type="button"
+                                role="listitem"
+                                onClick={() => setPlaceGuideOpen(true)}
+                                className="bg-card text-foreground flex shrink-0 items-center gap-1.5 rounded-full border border-black/10 px-3 py-1.5 text-sm font-medium shadow-sm"
+                            >
+                                <BookOpen className="size-4" aria-hidden />
+                                {currentPlace.name}
+                            </button>
+                        )}
                         {NEARBY_CATEGORIES.map(({ id, label, icon: Icon }) => (
                             <button
                                 key={id}
                                 type="button"
                                 role="listitem"
-                                onClick={() => setNearbyCategory(id)}
+                                onClick={() => setNearbyQuery({ kind: 'category', id })}
                                 className="bg-card text-foreground flex shrink-0 items-center gap-1.5 rounded-full border border-black/10 px-3 py-1.5 text-sm font-medium shadow-sm"
                             >
                                 <Icon className="size-4" aria-hidden />
@@ -271,6 +366,7 @@ export default function PlaceSearch() {
                             </button>
                         ))}
                     </div>
+                    </>
                 )}
             </div>
 
@@ -278,9 +374,7 @@ export default function PlaceSearch() {
                 className="min-w-0 flex-1"
                 onSubmit={(e) => {
                     e.preventDefault();
-                    if (results.length > 0) {
-                        handleSelectPlace(results[0]);
-                    }
+                    handleSearchAround();
                 }}
             >
                 <Input
