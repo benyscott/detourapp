@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import VoiceNoteRecorder from '@/components/VoiceNoteRecorder';
 import { cn } from '@/lib/utils';
 import usePlaceStore from '@/store/placeStore';
 import useVisitStore from '@/store/visitStore';
@@ -21,15 +22,17 @@ export default function FeedbackForm() {
     const [kind, setKind] = useState('bug');
     const [message, setMessage] = useState('');
     const [contact, setContact] = useState('');
+    const [voiceNote, setVoiceNote] = useState(null); // { blob, durationS }
     const [website, setWebsite] = useState(''); // honeypot, hidden from people
     const [status, setStatus] = useState('idle'); // idle | sending | sent | error | limited
 
     const placeholder = KINDS.find((k) => k.id === kind)?.placeholder;
-    const canSend = message.trim().length >= 3 && status !== 'sending';
+    const canSend = (message.trim().length >= 3 || Boolean(voiceNote)) && status !== 'sending';
 
     const reset = () => {
         setMessage('');
         setContact('');
+        setVoiceNote(null);
         setStatus('idle');
     };
 
@@ -38,22 +41,32 @@ export default function FeedbackForm() {
         if (!canSend) return;
         setStatus('sending');
         try {
-            const res = await fetch('/api/feedback', {
-                method: 'POST',
+            const payload = {
+                kind,
+                message,
+                contact,
+                website,
+                audioDurationS: voiceNote?.durationS ?? null,
+                context: {
+                    town: useVisitStore.getState().currentPlace?.name ?? null,
+                    destination: usePlaceStore.getState().destination?.name ?? null,
+                    path: window.location.pathname,
+                    screen: { width: window.innerWidth, height: window.innerHeight },
+                },
+            };
+            let init = {
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    kind,
-                    message,
-                    contact,
-                    website,
-                    context: {
-                        town: useVisitStore.getState().currentPlace?.name ?? null,
-                        destination: usePlaceStore.getState().destination?.name ?? null,
-                        path: window.location.pathname,
-                        screen: { width: window.innerWidth, height: window.innerHeight },
-                    },
-                }),
-            });
+                body: JSON.stringify(payload),
+            };
+            if (voiceNote) {
+                // Multipart with the recording; the browser sets the boundary header
+                const form = new FormData();
+                form.append('payload', JSON.stringify(payload));
+                const ext = voiceNote.blob.type.includes('webm') ? 'webm' : voiceNote.blob.type.includes('ogg') ? 'ogg' : 'm4a';
+                form.append('audio', voiceNote.blob, `voice-note.${ext}`);
+                init = { body: form };
+            }
+            const res = await fetch('/api/feedback', { method: 'POST', ...init });
             if (res.status === 429) {
                 setStatus('limited');
                 return;
@@ -112,6 +125,7 @@ export default function FeedbackForm() {
                 rows={4}
                 aria-label="Your feedback"
             />
+            <VoiceNoteRecorder onChange={setVoiceNote} disabled={status === 'sending'} />
             <Input
                 value={contact}
                 onChange={(e) => setContact(e.target.value)}
