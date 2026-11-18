@@ -1,5 +1,6 @@
 'use client';
 
+import FeedbackForm from '@/components/FeedbackForm';
 import SettingsForm from '@/components/SettingsForm';
 import {
     Drawer,
@@ -27,6 +28,9 @@ export default function SettingsDrawer() {
                     style={{ paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))' }}
                 >
                     <SettingsForm />
+                    <div className="border-border mt-6 border-t pt-6">
+                        <FeedbackForm />
+                    </div>
                 </div>
             </DrawerContent>
         </Drawer>
