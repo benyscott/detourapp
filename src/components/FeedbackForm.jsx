@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
+import usePlaceStore from '@/store/placeStore';
 import useVisitStore from '@/store/visitStore';
 
 const KINDS = [
@@ -20,9 +21,11 @@ export default function FeedbackForm() {
     const [kind, setKind] = useState('bug');
     const [message, setMessage] = useState('');
     const [contact, setContact] = useState('');
-    const [status, setStatus] = useState('idle'); // idle | sending | sent | error
+    const [website, setWebsite] = useState(''); // honeypot, hidden from people
+    const [status, setStatus] = useState('idle'); // idle | sending | sent | error | limited
 
     const placeholder = KINDS.find((k) => k.id === kind)?.placeholder;
+    const canSend = message.trim().length >= 3 && status !== 'sending';
 
     const reset = () => {
         setMessage('');
@@ -32,7 +35,7 @@ export default function FeedbackForm() {
 
     const submit = async (event) => {
         event.preventDefault();
-        if (!message.trim() || status === 'sending') return;
+        if (!canSend) return;
         setStatus('sending');
         try {
             const res = await fetch('/api/feedback', {
@@ -42,9 +45,19 @@ export default function FeedbackForm() {
                     kind,
                     message,
                     contact,
-                    town: useVisitStore.getState().currentPlace?.name ?? null,
+                    website,
+                    context: {
+                        town: useVisitStore.getState().currentPlace?.name ?? null,
+                        destination: usePlaceStore.getState().destination?.name ?? null,
+                        path: window.location.pathname,
+                        screen: { width: window.innerWidth, height: window.innerHeight },
+                    },
                 }),
             });
+            if (res.status === 429) {
+                setStatus('limited');
+                return;
+            }
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             setStatus('sent');
         } catch (error) {
@@ -73,7 +86,7 @@ export default function FeedbackForm() {
     }
 
     return (
-        <form onSubmit={submit} className="space-y-3">
+        <form onSubmit={submit} className="relative space-y-3">
             <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Kind of feedback">
                 {KINDS.map((k) => (
                     <button
@@ -107,14 +120,28 @@ export default function FeedbackForm() {
                 autoComplete="email"
                 aria-label="Contact (optional)"
             />
+            {/* Honeypot: off-screen and skipped by keyboards and screen readers */}
+            <input
+                type="text"
+                name="website"
+                value={website}
+                onChange={(e) => setWebsite(e.target.value)}
+                tabIndex={-1}
+                autoComplete="off"
+                aria-hidden="true"
+                className="absolute -left-[9999px] h-0 w-0 opacity-0"
+            />
             {status === 'error' && (
                 <p className="text-destructive m-0 text-sm">Couldn&apos;t send it. Try again?</p>
+            )}
+            {status === 'limited' && (
+                <p className="text-muted-foreground m-0 text-sm">Slow down a little, then try again.</p>
             )}
             <div className="flex gap-2">
                 <Button type="button" variant="ghost" className="rounded-full" onClick={() => setIsOpen(false)}>
                     Cancel
                 </Button>
-                <Button type="submit" className="flex-1 rounded-full" disabled={!message.trim() || status === 'sending'}>
+                <Button type="submit" className="flex-1 rounded-full" disabled={!canSend}>
                     {status === 'sending' ? 'Sending…' : 'Send'}
                 </Button>
             </div>
